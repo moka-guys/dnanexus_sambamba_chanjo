@@ -1,0 +1,54 @@
+{
+  "arch": "x86_64", 
+  "binstar": {
+    "channel": "main", 
+    "owner_id": "55f35cc885a76554d7c66613", 
+    "package_id": "55f35f48a2602e54426a8715"
+  }, 
+  "build": "1", 
+  "build_number": 1, 
+  "channel": "https://conda.anaconda.org/bioconda/linux-64", 
+  "depends": [
+    "zlib ==1.2.8"
+  ], 
+  "files": [
+    "bin/bcftools", 
+    "bin/color-chrs.pl", 
+    "bin/plot-vcfstats", 
+    "bin/vcfutils.pl", 
+    "libexec/bcftools/GTisec.so", 
+    "libexec/bcftools/color-chrs.so", 
+    "libexec/bcftools/counts.so", 
+    "libexec/bcftools/dosage.so", 
+    "libexec/bcftools/fill-AN-AC.so", 
+    "libexec/bcftools/fill-tags.so", 
+    "libexec/bcftools/fixploidy.so", 
+    "libexec/bcftools/frameshifts.so", 
+    "libexec/bcftools/impute-info.so", 
+    "libexec/bcftools/mendelian.so", 
+    "libexec/bcftools/missing2ref.so", 
+    "libexec/bcftools/setGT.so", 
+    "libexec/bcftools/tag2tag.so", 
+    "libexec/bcftools/vcf2sex.so", 
+    "share/man/man1/bcftools.1"
+  ], 
+  "fn": "bcftools-1.3.1-1.tar.bz2", 
+  "license": "MIT", 
+  "link": {
+    "source": "/home/dnanexus/miniconda2/pkgs/bcftools-1.3.1-1", 
+    "type": "hard-link"
+  }, 
+  "machine": "x86_64", 
+  "md5": "e84d4d67a943de9e76011f98333284bc", 
+  "name": "bcftools", 
+  "operatingsystem": "linux", 
+  "platform": "linux", 
+  "priority": 0, 
+  "requires": [], 
+  "schannel": "bioconda", 
+  "size": 1794578, 
+  "subdir": "linux-64", 
+  "target-triplet": "x86_64-any-linux", 
+  "url": "https://conda.anaconda.org/bioconda/linux-64/bcftools-1.3.1-1.tar.bz2", 
+  "version": "1.3.1"
+}

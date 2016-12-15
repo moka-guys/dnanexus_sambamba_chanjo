@@ -1,0 +1,32 @@
+# This file created by conda-build v2.0.1-fix-output+skip+61.g6003670
+# meta.yaml template originally from:
+# /bioconda-recipes/recipes/curl, last modified Tue Oct 25 13:34:40 2016
+# ------------------------------------------------
+
+package:
+    name: curl
+    version: 7.45.0
+source:
+    fn: curl-7.45.0.tar.gz
+    sha256: 02c78c8060d587422e2826f622c729189b56084bba365140f13af3d402b6cb6b
+    url: http://curl.haxx.se/download/curl-7.45.0.tar.gz
+build:
+    binary_has_prefix_files:
+        - lib/libcurl.so.4.4.0
+    number: '2'
+    skip: 'False'
+requirements:
+    build:
+        - openssl
+        - zlib
+    run:
+        - openssl
+        - zlib
+test:
+    commands:
+        - (curl --version 2>&1) > /dev/null
+about:
+    home: http://www.curl.haxx.se/
+    license: MIT
+    summary: curl is an open source command line tool and library for transferring
+        data with URL syntax

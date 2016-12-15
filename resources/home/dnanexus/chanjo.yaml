@@ -1,0 +1,4 @@
+database: coverage.sqlite3
+sambamba:
+  cov_treshold:
+  - 20

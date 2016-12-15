@@ -1,0 +1,4 @@
+/opt/anaconda1anaconda2anaconda3 text bin/curl-config
+/opt/anaconda1anaconda2anaconda3 text lib/libcurl.la
+/opt/anaconda1anaconda2anaconda3 text lib/pkgconfig/libcurl.pc
+/opt/conda/conda-bld/curl_1477402624803/_b_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehol binary lib/libcurl.so.4.4.0

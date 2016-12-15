@@ -1,0 +1,26 @@
+# This file created by conda-build 2.0.6
+# meta.yaml template originally from:
+# /opt/recipe, last modified Wed Oct 26 13:14:18 2016
+# ------------------------------------------------
+
+package:
+    name: sambamba
+    version: 0.6.5
+source:
+    fn: sambamba_v0.6.5.tar.bz2
+    md5: 697b8903722ec0225f378547b7bb9973
+    url: https://github.com/lomereiter/sambamba/releases/download/v0.6.5/sambamba_v0.6.5_linux.tar.bz2
+build:
+    number: '0'
+requirements:
+    build: ''
+    run:
+        - samtools
+        - bcftools
+test:
+    commands:
+        - sambamba view
+about:
+    home: https://github.com/lomereiter/sambamba
+    license: GPLv2
+    summary: Tools for working with SAM/BAM data

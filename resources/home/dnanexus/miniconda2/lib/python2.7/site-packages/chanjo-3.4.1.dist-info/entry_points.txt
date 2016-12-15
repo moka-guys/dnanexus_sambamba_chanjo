@@ -1,0 +1,14 @@
+[chanjo.subcommands.3]
+bootstrap = chanjo.cli:bootstrap_command
+calculate = chanjo.cli:calculate_command
+db = chanjo.cli:database_command
+demo = chanjo.demo:demo
+init = chanjo.cli:init_command
+link = chanjo.cli:link_command
+load = chanjo.cli:load_command
+sambamba = chanjo.cli:sambamba_command
+sex = chanjo.cli:sex_command
+
+[console_scripts]
+chanjo = chanjo.__main__:root_command
+
