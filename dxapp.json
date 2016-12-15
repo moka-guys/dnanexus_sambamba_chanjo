@@ -34,8 +34,7 @@
       "name": "chanjo_output",
       "label": "chanjo output",
       "help": "A csv file containing the coverage for each exoncoordinate-sorted BAM file with the resulting mappings.",
-      "class": "file",
-      "patterns": ["*.csv"]
+      "class": "file"
     }
   ],
   "runSpec":  {
