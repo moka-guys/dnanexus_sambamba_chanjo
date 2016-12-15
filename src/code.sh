@@ -23,7 +23,7 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 #
 #mark-section "running sambamba"
 # any errors with not being able to find the bedfile or reference file - check the bedfile for headers (and remove any!)
-sambamba depth region -L bedfile -T 20 -F "mapping_quality >= 20" $bamfile_prefix.bam > $bamfile_prefix.sambamba_output.bed
+sambamba depth region -L bedfile -T 20 -m -F "mapping_quality >= 20" $bamfile_prefix.bam > $bamfile_prefix.sambamba_output.bed
 
 
 #
