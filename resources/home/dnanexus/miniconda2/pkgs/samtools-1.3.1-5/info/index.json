@@ -1,0 +1,15 @@
+{
+  "arch": "x86_64",
+  "build": "5",
+  "build_number": 5,
+  "depends": [
+    "curl",
+    "libgcc",
+    "zlib"
+  ],
+  "license": "MIT",
+  "name": "samtools",
+  "platform": "linux",
+  "subdir": "linux-64",
+  "version": "1.3.1"
+}
