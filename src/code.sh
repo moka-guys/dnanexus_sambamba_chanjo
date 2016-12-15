@@ -8,7 +8,7 @@ set -e -x -o pipefail
 #
 # Fetch bed files and bam files
 #
-mark-section "Downloading inputs"
+#mark-section "Downloading inputs"
 dx download "$sambamba_bed" -o bedfile
 dx download "$bamfile"
 dx download "$bam_index" 
@@ -21,13 +21,13 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 #
 # run sambama
 #
-mark-section "running sambamba"
+#mark-section "running sambamba"
 sambamba depth region -L bedfile -T 20 -F "mapping_quality >= 20" $bamfile_prefix.bam > $bamfile_prefix.sambamba_output.bed
 
 #
 # run chanjo
 #
-mark-section "running chanjo"
+#mark-section "running chanjo"
 #initiate database
 chanjo init -a 
 chanjo db setup
@@ -45,14 +45,14 @@ do
 	chanjo calculate gene $i >> chanjo_out.json
 done
 
-mark-section "running python script to parse chanjo output"
+#mark-section "running python script to parse chanjo output"
 #python script parses the chanjo_out.json and creates a chanjo_out.csv file
 python read_chanjo.py
 
 #
 # Upload result
 #
-mark-section "uploading results"
+#mark-section "uploading results"
 # make output folder
 mkdir -p ~/out/chanjo_output/
 #move and rename the output of the python script
