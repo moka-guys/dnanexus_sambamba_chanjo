@@ -56,7 +56,7 @@ python read_chanjo.py
 #
 #mark-section "uploading results"
 # make output folder
-mkdir -p ~/out/chanjo_output/
+mkdir -p ~/out/chanjo_output/QC/
 #move and rename the output of the python script
-mv chanjo_out.csv ~/out/chanjo_output/$bamfile_prefix.chanjo_out
+mv chanjo_out.csv ~/out/chanjo_output/QC/$bamfile_prefix.chanjo_out
 dx-upload-all-outputs --parallel
