@@ -1,14 +1,11 @@
 #!/bin/bash
-#
 
 # The following line causes bash to exit at any point if there is any error
 # and to output each line as it is executed -- useful for debugging
 set -e -x -o pipefail
 
 #######################################################################
-#
 # Download inputs
-#
 #######################################################################
 
 dx download "$sambamba_bed" -o bedfile
@@ -23,7 +20,6 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 #######################################################################
 
 # any errors with not being able to find the bedfile or reference file - check the bedfile for headers (and remove any!)
-
 # if exome need 20x coverage
 if [[ $bamfile_prefix == *"WES"* ]]; then
 sambamba depth region -L bedfile -T 20 -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
@@ -65,7 +61,6 @@ python read_chanjo.py
 #######################################################################
 # Upload results
 #######################################################################
-
 # make output folder
 mkdir -p ~/out/chanjo_output/
 
@@ -77,5 +72,6 @@ mv /home/dnanexus/chanjo.yaml ~/out/chanjo_output/chanjo.yaml
 #move and rename the output of the python script
 mv chanjo_out.txt ~/out/chanjo_output/$bamfile_prefix.chanjo_txt
 mv exon_level.txt ~/out/chanjo_output/$bamfile_prefix.exon_level.txt
+
 
 dx-upload-all-outputs --parallel
