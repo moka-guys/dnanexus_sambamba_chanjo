@@ -62,16 +62,18 @@ python read_chanjo.py
 # Upload results
 #######################################################################
 # make output folder
-mkdir -p ~/out/chanjo_output/
+mkdir -p ~/out/chanjo_raw_output/coverage/raw_output/
+mkdir -p ~/out/chanjo_yaml/coverage/chanjo_yaml/
+mkdir -p ~/out/chanjo_output_to_report/coverage/
 
 # move and rename the chanjo out.json and sambamba_out
-mv chanjo_out.json ~/out/chanjo_output/$bamfile_prefix.chanjo_out_json
-mv sambamba_output.bed ~/out/chanjo_output/$bamfile_prefix.sambamba_output.bed
-mv /home/dnanexus/chanjo.yaml ~/out/chanjo_output/chanjo.yaml
+mv chanjo_out.json ~/out/chanjo_raw_output/coverage/raw_output/$bamfile_prefix.chanjo_out_json
+mv sambamba_output.bed ~/out/chanjo_raw_output/coverage/raw_output/$bamfile_prefix.sambamba_output.bed
+mv /home/dnanexus/chanjo.yaml ~/out/chanjo_yaml/coverage/chanjo_yaml/$bamfile_prefix.chanjo.yaml
 
 #move and rename the output of the python script
-mv chanjo_out.txt ~/out/chanjo_output/$bamfile_prefix.chanjo_txt
-mv exon_level.txt ~/out/chanjo_output/$bamfile_prefix.exon_level.txt
+mv chanjo_out.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.chanjo_txt
+mv exon_level.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.exon_level.txt
 
 
 dx-upload-all-outputs --parallel
