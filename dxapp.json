@@ -31,9 +31,21 @@
   ],
   "outputSpec": [
     {
-      "name": "chanjo_output",
-      "label": "chanjo output",
-      "help": "A csv file containing the coverage for each exoncoordinate-sorted BAM file with the resulting mappings.",
+      "name": "chanjo_raw_output",
+      "label": "chanjo raw output",
+      "help": "A json file output by chanjo (which is then parsed to create the reported output) and a bedfile that is output by sambamba (and used by chanjo).",
+      "class": "array:file"
+    },
+    {
+      "name": "chanjo_yaml",
+      "label": "chanjo yaml config file",
+      "help": "A YAML file used as the config settings for chanjo.",
+      "class": "array:file"
+    },
+    {
+      "name": "chanjo_output_to_report",
+      "label": "chanjo output to download",
+      "help": "Two files that contain the output from sambamba and chanjo, and cleaned so it can be imported to moka or provide exon level coverage",
       "class": "array:file"
     }
   ],
