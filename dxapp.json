@@ -45,7 +45,7 @@
     {
       "name": "chanjo_output_to_report",
       "label": "chanjo output to download",
-      "help": "Two files that contain the output form sambamba and chanjo, and cleaned so it can be imported to moak or provide exon level coverage",
+      "help": "Two files that contain the output from sambamba and chanjo, and cleaned so it can be imported to moka or provide exon level coverage",
       "class": "array:file"
     }
   ],
