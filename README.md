@@ -6,11 +6,16 @@ This app utilises Chanjo and Sambamba to calculates coverage.
 The script reads the name of the BAM file to determine if it is a WES sample or a custom panel, and therefore if coverage should be calculated at 20X or 30X.
 ####Sambamba
 The sambamba depth region function is used. 
-We provide the following arguments
--L bedfile 			Only counts regions stated in the bedfile
--T 20 				The required read depth of 20X (Custom panels has -T 30)
--m 				Does not count overlapping mate reads more than once.
--F "mapping_quality >= 20" 	Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
+We provide the following arguments:
+
+* -L bedfile    -     Only counts regions stated in the bedfile
+
+* -T 20         -      The required read depth of 20X (Custom panels has -T 30)
+
+* -m            - Does not count overlapping mate reads more than once.
+
+* -F "mapping_quality >= 20"  - Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
+
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
