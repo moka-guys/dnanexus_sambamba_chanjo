@@ -30,7 +30,7 @@ sambamba depth region -L bedfile -T 30 -m -F "mapping_quality >= 20" $bamfile_pr
 printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - 30" > /home/dnanexus/chanjo.yaml
 fi
 
-head sambamba_output.bed
+#head sambamba_output.bed
 #######################################################################
 # run chanjo
 #######################################################################
