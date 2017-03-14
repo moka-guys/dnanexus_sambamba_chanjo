@@ -21,7 +21,7 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 
 # any errors with not being able to find the bedfile or reference file - check the bedfile for headers (and remove any!)
 # if exome need 20x coverage
-if echo "$$bamfile_prefix" | grep -q 'WES\|Pan493' ; then 
+if echo "$bamfile_prefix" | grep -q 'WES\|Pan493' ; then 
 sambamba depth region -L bedfile -T 20 -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
 printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - 20" > /home/dnanexus/chanjo.yaml
 else 
@@ -30,7 +30,7 @@ sambamba depth region -L bedfile -T 30 -m -F "mapping_quality >= 20" $bamfile_pr
 printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - 30" > /home/dnanexus/chanjo.yaml
 fi
 
-#head /home/dnanexus/chanjo.yaml
+head sambamba_output.bed
 #######################################################################
 # run chanjo
 #######################################################################
