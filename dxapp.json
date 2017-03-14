@@ -5,6 +5,9 @@
   "tags": [
     "coverage"
   ],
+  "properties": {
+    "github release": "v1.2"
+  },
   "dxapi": "1.0.0",
   "inputSpec": [
     {
@@ -14,14 +17,14 @@
       "class": "file",
       "patterns": ["*.bed"]
     },
-  {
+    {
       "name": "bamfile",
       "label": "bamfile",
       "help": "bam file.",
       "class": "file",
       "patterns": ["*.bam"]
     },
-  {
+    {
       "name": "bam_index",
       "label": "bamfile_index",
       "help": "bam index.",
@@ -31,25 +34,13 @@
   ],
   "outputSpec": [
     {
-      "name": "chanjo_raw_output",
-      "label": "chanjo raw output",
-      "help": "A json file output by chanjo (which is then parsed to create the reported output) and a bedfile that is output by sambamba (and used by chanjo).",
-      "class": "array:file"
-    },
-    {
-      "name": "chanjo_yaml",
-      "label": "chanjo yaml config file",
-      "help": "A YAML file used as the config settings for chanjo.",
-      "class": "array:file"
-    },
-    {
-      "name": "chanjo_output_to_report",
-      "label": "chanjo output to download",
-      "help": "Two files that contain the output from sambamba and chanjo, and cleaned so it can be imported to moka or provide exon level coverage",
+      "name": "chanjo_output",
+      "label": "chanjo output",
+      "help": "A csv file containing the coverage for each exoncoordinate-sorted BAM file with the resulting mappings.",
       "class": "array:file"
     }
   ],
-  "runSpec":  {
+  "runSpec": {
     "execDepends": [
       {
         "name": "bedtools"
@@ -60,7 +51,7 @@
     ],
     "systemRequirements": {
       "main": {
-        "instanceType": "mem1_ssd1_x32"
+        "instanceType": "mem1_ssd1_x2"
       }
     },
     "file": "src/code.sh",
