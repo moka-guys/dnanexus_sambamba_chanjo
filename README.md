@@ -44,7 +44,7 @@ This app produces five outputs:
 
 1. The raw sambamba output file
 
-2. The parsed sambamba output that can be used to identify exons covered <100% at 30X
+2. The parsed sambamba output that identifies exons covered <100% at 30X
 
 3. The raw chanjo output
 
