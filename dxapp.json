@@ -5,6 +5,9 @@
   "tags": [
     "coverage"
   ],
+  "properties": {
+    "github release": "v1.3"
+  },
   "dxapi": "1.0.0",
   "inputSpec": [
     {
@@ -14,14 +17,14 @@
       "class": "file",
       "patterns": ["*.bed"]
     },
-  {
+    {
       "name": "bamfile",
       "label": "bamfile",
       "help": "bam file.",
       "class": "file",
       "patterns": ["*.bam"]
     },
-  {
+    {
       "name": "bam_index",
       "label": "bamfile_index",
       "help": "bam index.",
@@ -49,7 +52,7 @@
       "class": "array:file"
     }
   ],
-  "runSpec":  {
+  "runSpec": {
     "execDepends": [
       {
         "name": "bedtools"
@@ -60,7 +63,7 @@
     ],
     "systemRequirements": {
       "main": {
-        "instanceType": "mem1_ssd1_x32"
+        "instanceType": "mem1_ssd1_x2"
       }
     },
     "file": "src/code.sh",

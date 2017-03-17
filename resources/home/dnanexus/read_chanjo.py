@@ -43,15 +43,18 @@ class read_chanjo():
             # ignore header
             for line in samb:
                 if line.startswith("#"):
-                    pass
+                    #pass
+                    output.write("gene\tcoordinates\tpercent_bases_covered\n")    
                 else:
                     # split and capture gene name, coordinates and the percent_bases_covered
                     line_split= line.split("\t")
                     gene=line_split[6]
                     coords=line_split[3]
                     percent_bases_covered=line_split[10]
-                    # write to file
-                    output.write(gene+"\t"+coords+"\t"+percent_bases_covered+"\n")    
+                    # only report regions which are not covered at 100%
+                    if percent_bases_covered < 100.00:
+                        # write to file
+                        output.write(gene+"\t"+coords+"\t"+percent_bases_covered+"\n")    
         
         # close output file
         output.close()        
