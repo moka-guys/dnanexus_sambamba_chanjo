@@ -50,11 +50,11 @@ class read_chanjo():
                     line_split= line.split("\t")
                     gene=line_split[6]
                     coords=line_split[3]
-                    percent_bases_covered=line_split[10]
+                    percent_bases_covered=float(line_split[10])
                     # only report regions which are not covered at 100%
                     if percent_bases_covered < 100.00:
                         # write to file
-                        output.write(gene+"\t"+coords+"\t"+percent_bases_covered+"\n")    
+                        output.write(gene+"\t"+coords+"\t"+str(percent_bases_covered)+"\n")    
         
         # close output file
         output.close()        
