@@ -57,8 +57,8 @@ class read_chanjo():
                         # write to file
                         output.write(gene+"\t"+coords+"\t"+str(percent_bases_covered)+"\n")    
                         count += 1
-                    if count == 0:
-                        output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
+            if count == 0:
+                output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
         
         # close output file
         output.close()        
