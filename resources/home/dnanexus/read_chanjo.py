@@ -52,9 +52,13 @@ class read_chanjo():
                     coords=line_split[3]
                     percent_bases_covered=float(line_split[10])
                     # only report regions which are not covered at 100%
+                    count=0
                     if percent_bases_covered < 100.00:
                         # write to file
                         output.write(gene+"\t"+coords+"\t"+str(percent_bases_covered)+"\n")    
+                        count += 1
+                    if count == 0:
+                        output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
         
         # close output file
         output.close()        
