@@ -38,27 +38,32 @@ class read_chanjo():
     def exon_level(self):
         # open exon level coverage output
         output=open(self.exonlevel, 'w')
-        #pen sambamba output
+        
+        # only report regions which are not covered at 100%
+        count=0
+
+        #open sambamba output
         with open(self.sambamba_in,'r') as samb:
             # ignore header
             for line in samb:
                 if line.startswith("#"):
                     #pass
-                    output.write("gene\tcoordinates\tpercent_bases_covered\n")    
+                    output.write("gene\ttranscript\tentrezID\tChr\tstart\tstop\tpercent_bases_covered\n")    
                 else:
                     # split and capture gene name, coordinates and the percent_bases_covered
                     line_split= line.split("\t")
                     gene=line_split[6]
+                    entrezid=line_split[7].rstrip()
                     coords=line_split[3]
-                    percent_bases_covered=float(line_split[10])
-                    # only report regions which are not covered at 100%
-                    count=0
+                    percent_bases_covered=float(line_split[10])            
                     if percent_bases_covered < 100.00:
                         # write to file
-                        output.write(gene+"\t"+coords+"\t"+str(percent_bases_covered)+"\n")    
+                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(percent_bases_covered)+"\n")    
                         count += 1
             if count == 0:
                 output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
+            else:
+                output.write("Any exons not mentioned above are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
         
         # close output file
         output.close()        
