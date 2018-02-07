@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.5
+# dnanexus_sambamba_chanjo - v1.6
 
 ## What does this app do?
 This app utilises Chanjo and Sambamba to calculates coverage.
