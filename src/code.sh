@@ -24,6 +24,7 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 # Use sambaba depth to append coverage to sambamba_output.bed 
 # -L is the bedfile to define the regions that coverage must be calculated for
 # -T is the minimum coverage required for the amplicon
+# -t is the number of threads available
 # -m does not count overlapping mate reads more than once
 # -F allows filtering using other BAM info eg mapping quality
 # check if -m flag is required
