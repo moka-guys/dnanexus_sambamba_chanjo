@@ -8,16 +8,20 @@ The `sambamba depth region` function is used with the following arguments:
 
 * -L bedfile    -   Only counts regions stated in the bedfile
 * -T 20 -   The required read depth. WES = 20, Custom panels = 30, Cancer = 1000
+* -t `nproc`    -   Utilise multiple threads
 * -m    -   Does not count overlapping mate reads more than once.
 * -F "mapping_quality >= 20"    - Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
+
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
 This output is parsed by a python script to procude an output detailing any exons that are not covered 100% at the required read depth.
 
 ### Chanjo
-The sambamba output is used by Chanjo to calculate the % of bases covered at the required read depth at a gene level. 
-The chanjo database is set up (`chanjo init -a; chanjo db setup`) and the sambamba file linked (`chanjo  link sambamba_output.bed` and loaded `chanjo load sambamba_output.bed`.
+The sambamba output is used by Chanjo to calculate the % of bases covered at the required read depth at a gene level.
+
+The chanjo database is set up (`chanjo init -a; chanjo db setup`) and the sambamba file linked (`chanjo  link sambamba_output.bed`) and loaded (`chanjo load sambamba_output.bed`).
+
 The bed file is used to extract a unique list of gene symbols and the coverage for each gene is then calculated (`chanjo calculate gene $gene >> chanjo_out.json`)
 
 This output is then parsed by a custom python script to generate a file that can be downloaded, and loaded into MOKA to generate clinical coverage reports.

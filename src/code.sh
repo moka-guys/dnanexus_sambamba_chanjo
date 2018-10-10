@@ -28,9 +28,9 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 # -F allows filtering using other BAM info eg mapping quality
 # check if -m flag is required
 if [[ "$merge_overlapping_mate_reads" == true ]]; then
-	sambamba depth region -L bedfile -T $coverage_level -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
 else
-	sambamba depth region -L bedfile -T $coverage_level -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
 fi
 
 
