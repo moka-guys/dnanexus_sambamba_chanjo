@@ -15,7 +15,7 @@ The `sambamba depth region` function is used with the following arguments:
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
-This output is parsed by a python script to procude an output detailing any exons that are not covered 100% at the required read depth.
+This output is parsed by a python script to produce an output detailing any exons that are not covered 100% at the required read depth.
 
 ### Chanjo
 The sambamba output is used by Chanjo to calculate the % of bases covered at the required read depth at a gene level.
