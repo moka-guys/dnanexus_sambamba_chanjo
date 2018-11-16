@@ -20,15 +20,24 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 #######################################################################
 
 # any errors with not being able to find the bedfile or reference file - check the bedfile for headers (and remove any!)
-# if exome need 20x coverage
-if echo "$bamfile_prefix" | grep -q 'WES\|Pan493' ; then 
-sambamba depth region -L bedfile -T 20 -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
-printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - 20" > /home/dnanexus/chanjo.yaml
-else 
-#custom panells are at 30X
-sambamba depth region -L bedfile -T 30 -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
-printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - 30" > /home/dnanexus/chanjo.yaml
+# Use the coverage_level input to specify the coverage to be reported
+# Use sambaba depth to append coverage to sambamba_output.bed 
+# -L is the bedfile to define the regions that coverage must be calculated for
+# -T is the minimum coverage required for the amplicon
+# -t is the number of threads available
+# -m does not count overlapping mate reads more than once
+# -F allows filtering using other BAM info eg mapping quality
+# check if -m flag is required
+if [[ "$merge_overlapping_mate_reads" == true ]]; then
+	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+else
+	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
 fi
+
+
+# chanjo can be modified using a yaml config file. The threshold level can be specified here using coverage_level input.
+printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - $coverage_level" > /home/dnanexus/chanjo.yaml
+
 
 #head sambamba_output.bed
 #######################################################################
@@ -47,9 +56,9 @@ chanjo  load sambamba_output.bed
 LIST=$(cat -n sambamba_output.bed | awk -F '\t' '$1>1 {print $9}' | sort | uniq)
 
 #loop through list and get chanjo output
-for i in $LIST
+for gene in $LIST
 do
-	chanjo calculate gene $i >> chanjo_out.json
+	chanjo calculate gene $gene >> chanjo_out.json
 done
 
 #######################################################################
