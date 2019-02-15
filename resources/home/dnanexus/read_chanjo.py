@@ -16,13 +16,11 @@ class read_chanjo():
         self.sambamba_in=self.path+"sambamba_output.bed"
         self.exonlevel=self.path+"exon_level.txt"
     
-        #self.json_file = "/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.json" 
-        #self.output_file="/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.csv"
         self.coverage_level = "X"
 
     def get_coverage_level(self):
         """
-        Read the bash variable which contains the minimum coverage level specified in the $coverage_level input
+        Read the bash variable which contains the minimum coverage level specified in the app's $coverage_level input
         """
         # set bash command
         cmd = "echo $coverage_level"
@@ -54,9 +52,6 @@ class read_chanjo():
     def exon_level(self):
         # open exon level coverage output
         output=open(self.exonlevel, 'w')
-        
-        # only report regions which are not covered at 100%
-        count=0
 
         #open sambamba output
         with open(self.sambamba_in,'r') as samb:
@@ -76,7 +71,6 @@ class read_chanjo():
                     if percent_bases_covered < 100.00:
                         # write to file
                         output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(meanCoverage)+"\t"+str(percent_bases_covered)+"\n")    
-                        count += 1
             else:
                 output.write("Any exons not mentioned above are covered 100% at " + self.coverage_level)
         
