@@ -21,14 +21,18 @@ class read_chanjo():
         self.coverage_level = "X"
 
     def get_coverage_level(self):
+        """
+        Read the bash variable which contains the minimum coverage level specified in the $coverage_level input
+        """
+        # set bash command
         cmd = "echo $coverage_level"
+        # execute command
         proc = subprocess.Popen([cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
         # Capture the streams
         (out, err) = proc.communicate()
-        print "out"+out
-        print "err"+err
+        # record the stdout, removing any new lines.
         self.coverage_level = out.rstrip() + self.coverage_level
-        print self.coverage_level
+        
 
     def read_json(self):
         # open output file
