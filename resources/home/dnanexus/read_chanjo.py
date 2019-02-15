@@ -6,6 +6,7 @@ Created on 14 Dec 2016
 @author: aled
 '''
 import sys
+import subprocess 
 
 class read_chanjo():
     def __init__(self):
@@ -17,6 +18,17 @@ class read_chanjo():
     
         #self.json_file = "/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.json" 
         #self.output_file="/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.csv"
+        self.coverage_level = "X"
+
+    def get_coverage_level(self):
+        cmd = "echo $coverage_level"
+        proc = subprocess.Popen([cmd], stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+        # Capture the streams
+        (out, err) = proc.communicate()
+        print "out"+out
+        print "err"+err
+        self.coverage_level = out.rstrip() + self.coverage_level
+        print self.coverage_level
 
     def read_json(self):
         # open output file
@@ -48,22 +60,21 @@ class read_chanjo():
             for line in samb:
                 if line.startswith("#"):
                     #pass
-                    output.write("gene\ttranscript\tentrezID\tChr\tstart\tstop\tpercent_bases_covered\n")    
+                    output.write("gene\ttranscript\tentrezID\tChr\tstart\tstop\taverage_coverage\tpercent_bases_covered\n")    
                 else:
                     # split and capture gene name, coordinates and the percent_bases_covered
                     line_split= line.split("\t")
                     gene=line_split[6]
                     entrezid=line_split[7].rstrip()
                     coords=line_split[3]
+                    meanCoverage=float(line_split[9])
                     percent_bases_covered=float(line_split[10])            
                     if percent_bases_covered < 100.00:
                         # write to file
-                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(percent_bases_covered)+"\n")    
+                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(meanCoverage)+"\t"+str(percent_bases_covered)+"\n")    
                         count += 1
-            if count == 0:
-                output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
             else:
-                output.write("Any exons not mentioned above are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
+                output.write("Any exons not mentioned above are covered 100% at " + self.coverage_level)
         
         # close output file
         output.close()        
@@ -71,6 +82,7 @@ class read_chanjo():
 
 if __name__ == '__main__':
     a=read_chanjo()
+    a.get_coverage_level()
     a.read_json()
     a.exon_level()
     
