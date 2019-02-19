@@ -6,6 +6,8 @@ Created on 14 Dec 2016
 @author: aled
 '''
 import sys
+import subprocess 
+import os
 
 class read_chanjo():
     def __init__(self):
@@ -14,9 +16,8 @@ class read_chanjo():
         self.output_file=self.path+"chanjo_out.txt"
         self.sambamba_in=self.path+"sambamba_output.bed"
         self.exonlevel=self.path+"exon_level.txt"
-    
-        #self.json_file = "/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.json" 
-        #self.output_file="/home/aled/Documents/DNA_Nexus_app_github/chanjo2/4221_S5_L001_R1_001.chanjo_out.csv"
+        # Read the bash variable which contains the minimum coverage level (specified in the app's $coverage_level input)
+        self.coverage_level = str(os.environ['coverage_level'].rstrip())
 
     def read_json(self):
         # open output file
@@ -38,32 +39,28 @@ class read_chanjo():
     def exon_level(self):
         # open exon level coverage output
         output=open(self.exonlevel, 'w')
+        # write header
+        output.write("gene\ttranscript\tentrezID\tChr\tstart\tstop\taverage_coverage\tpercent_bases_covered\n")    
         
-        # only report regions which are not covered at 100%
-        count=0
-
         #open sambamba output
         with open(self.sambamba_in,'r') as samb:
             # ignore header
             for line in samb:
-                if line.startswith("#"):
-                    #pass
-                    output.write("gene\ttranscript\tentrezID\tChr\tstart\tstop\tpercent_bases_covered\n")    
-                else:
-                    # split and capture gene name, coordinates and the percent_bases_covered
+                if not line.startswith("#"):
+                    # split and capture gene name, entrezid, coordinates, average coverage and the percent_bases_covered
                     line_split= line.split("\t")
                     gene=line_split[6]
                     entrezid=line_split[7].rstrip()
                     coords=line_split[3]
+                    meanCoverage=float(line_split[9])
                     percent_bases_covered=float(line_split[10])            
+                    # if not covered 100% @ required depth 
                     if percent_bases_covered < 100.00:
                         # write to file
-                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(percent_bases_covered)+"\n")    
-                        count += 1
-            if count == 0:
-                output.write("All Exons are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
+                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(meanCoverage)+"\t"+str(percent_bases_covered)+"\n")    
             else:
-                output.write("Any exons not mentioned above are covered 100% at the desired coverage level (30X for custom panels,20X for WES)")
+                # write line to end report
+                output.write("Any exons not mentioned above are covered 100% at " + self.coverage_level + "X")
         
         # close output file
         output.close()        

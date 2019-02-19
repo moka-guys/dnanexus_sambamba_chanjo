@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.8
+# dnanexus_sambamba_chanjo - v1.9
 
 ## What does this app do?
 This app utilises Chanjo and Sambamba to calculates coverage.
@@ -7,11 +7,10 @@ This app utilises Chanjo and Sambamba to calculates coverage.
 The `sambamba depth region` function is used with the following arguments:
 
 * -L bedfile    -   Only counts regions stated in the bedfile
-* -T 20 -   The required read depth. WES = 20, Custom panels = 30, Cancer = 1000
-* -t `nproc`    -   Utilise multiple threads
+* -T n -   The required read depth (integer). For example, WES requires a minimum read depth of 20X, custom panels 30X whilst Oncology samples require a much higher read depth.
+* -t `nproc`    -   Utilise multiple threads - uses the total number of threads available.
 * -m    -   Does not count overlapping mate reads more than once.
 * -F "mapping_quality >= 20"    - Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
-
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
