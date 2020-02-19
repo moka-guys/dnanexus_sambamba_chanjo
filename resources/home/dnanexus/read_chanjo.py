@@ -56,8 +56,19 @@ class read_chanjo():
                     percent_bases_covered=float(line_split[10])            
                     # if not covered 100% @ required depth 
                     if percent_bases_covered < 100.00:
+                        # some bedfiles now have rsIDs in the gene column so are not in the format gene;transcript.
+                        # if it's in format gene;transcript
+                        if len(gene.split(";")) == 2:
+                            coverage_report_gene = gene.split(";")[0]
+                            coverage_report_transcript = gene.split(";")[1]
+                        # if it's an rsID
+                        elif len(gene.split(";")) == 1 and gene.startswith("rs"):
+                            coverage_report_gene = gene
+                            coverage_report_transcript = gene
+                        else:
+                            raise AssertionError("unable to find the gene symbol")
                         # write to file
-                        output.write(gene.split(";")[0]+"\t"+gene.split(";")[1]+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(meanCoverage)+"\t"+str(percent_bases_covered)+"\n")    
+                        output.write(coverage_report_gene+"\t"+coverage_report_transcript+"\t"+entrezid+"\t"+coords.split("-")[0]+"\t"+coords.split("-")[1]+"\t"+coords.split("-")[2]+"\t"+str(meanCoverage)+"\t"+str(percent_bases_covered)+"\n")    
             else:
                 # write line to end report
                 output.write("Any exons not mentioned above are covered 100% at " + self.coverage_level + "X")
