@@ -28,11 +28,16 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 # -m does not count overlapping mate reads more than once
 # -F allows filtering using other BAM info eg mapping quality
 # check if -m flag is required
+
+opts="-T $coverage_level -q $min_base_qual"
+
 if [[ "$merge_overlapping_mate_reads" == true ]]; then
-	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
-else
-	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+	opts="$opts -m"
 fi
+
+sambamba depth region -L bedfile -t `nproc`  $opts -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+
+
 
 
 # chanjo can be modified using a yaml config file. The threshold level can be specified here using coverage_level input.

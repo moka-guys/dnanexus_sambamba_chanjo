@@ -1,12 +1,12 @@
 {
-  "name": "chanjo_sambamba_coverage_v1.10",
-  "title": "coverage using sambamba and chanjo v1.10",
-  "summary": "v1.10 - coverage using sambamba and chanjo",
+  "name": "chanjo_sambamba_coverage_v1.11",
+  "title": "coverage using sambamba and chanjo v1.11",
+  "summary": "v1.11 - coverage using sambamba and chanjo",
   "tags": [
     "coverage"
   ],
   "properties": {
-    "github release": "v1.10"
+    "github release": "v1.11"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -36,13 +36,20 @@
       "label": "count overlapping mate reads once",
       "help": "Should overlapping mate reads be counted once? True = counted once. False = counted twice",
       "class": "boolean",
-      "default":true
+      "default": true
     },
     {
       "name": "coverage_level",
       "label": "coverage level",
       "help": "The level of coverage to be reported.",
       "class": "string"
+    },
+    {
+      "name": "min_base_qual",
+      "label": "min base quality score (-q)",
+      "help": "The minimum base quality score required to be counted.",
+      "class": "int",
+      "default": 25
     }
   ],
   "outputSpec": [
@@ -74,21 +81,19 @@
         "name": "sqlite3"
       }
     ],
-    "systemRequirementsByRegion": {
-      "aws:us-east-1": {
-        "main": {
-          "instanceType": "mem1_ssd1_x2"
-        }
-      }
-    },
-    "systemRequirements": {
-      "main": {
-        "instanceType": "mem1_ssd1_x2"
-      }
-    },
     "file": "src/code.sh",
     "release": "14.04",
     "interpreter": "bash",
     "distribution": "Ubuntu"
+  },
+  "ignoreReuse": false,
+  "regionalOptions": {
+    "aws:us-east-1": {
+      "systemRequirements": {
+        "main": {
+          "instanceType": "mem1_ssd1_x2"
+        }
+      }
+    }
   }
 }

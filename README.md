@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.10
+# dnanexus_sambamba_chanjo - v1.11
 
 ## What does this app do?
 This app utilises Chanjo and Sambamba to calculates coverage.
@@ -11,6 +11,7 @@ The `sambamba depth region` function is used with the following arguments:
 * -t `nproc`    -   Utilise multiple threads - uses the total number of threads available.
 * -m    -   Does not count overlapping mate reads more than once.
 * -F "mapping_quality >= 20"    - Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
+* -q    -   Min base quality for that base to be counted.
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
@@ -32,6 +33,7 @@ This output is then parsed by a custom python script to generate a file that can
 3. A bed file in the sambamba format. This file is created by MokaBED and named in format Pan123sambamba.bed. 
 4. The minimum read depth required (integer). 
 5. Count overlapping mate reads once? This True/False boolean denotes whether to apply the -m flag. True counts overlapping mate reads once (default) whereas False counts each overlapping mate read seperately.
+6. Min base quality to be included (default = 25)
 
 
 ## What does this app output?
