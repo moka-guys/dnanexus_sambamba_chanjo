@@ -35,7 +35,7 @@ if [[ "$merge_overlapping_mate_reads" == true ]]; then
 	opts="$opts -m"
 fi
 
-sambamba depth region -L bedfile -t "$(nproc)"  "$opts" -F "mapping_quality >= 20" "$bamfile_prefix".bam > sambamba_output.bed
+sambamba depth region -L bedfile -t "$(nproc)"  "$opts" -F "mapping_quality >= 20 and not duplicate and not failed_quality_control" "$bamfile_prefix".bam > sambamba_output.bed
 
 
 
