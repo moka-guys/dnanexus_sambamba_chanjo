@@ -15,21 +15,27 @@
       "label": "sambamba_bed",
       "help": "A samamba bedfile.",
       "class": "file",
-      "patterns": ["*.bed"]
+      "patterns": [
+        "*.bed"
+      ]
     },
     {
       "name": "bamfile",
       "label": "bamfile",
       "help": "bam file.",
       "class": "file",
-      "patterns": ["*.bam"]
+      "patterns": [
+        "*.bam"
+      ]
     },
     {
       "name": "bam_index",
       "label": "bamfile_index",
       "help": "bam index.",
       "class": "file",
-      "patterns": ["*.bai"]
+      "patterns": [
+        "*.bai"
+      ]
     },
     {
       "name": "merge_overlapping_mate_reads",
@@ -50,6 +56,13 @@
       "help": "The minimum base quality score required to be counted.",
       "class": "int",
       "default": 25
+    }
+    {
+      "name": "min_mapping_qual",
+      "label": "min mapping quality score",
+      "help": "The minimum mapping quality score required to be counted.",
+      "class": "int",
+      "default": 20
     }
   ],
   "outputSpec": [
