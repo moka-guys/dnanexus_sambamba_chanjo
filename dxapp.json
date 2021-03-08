@@ -56,7 +56,7 @@
       "help": "The minimum base quality score required to be counted.",
       "class": "int",
       "default": 25
-    }
+    },
     {
       "name": "min_mapping_qual",
       "label": "min mapping quality score",
