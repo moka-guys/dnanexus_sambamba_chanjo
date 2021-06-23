@@ -62,8 +62,7 @@
       "name": "coverage_level",
       "label": "coverage level",
       "help": "The level of coverage to be reported.",
-      "class": "string",
-      "default": "150"
+      "class": "string"
     },
     {
       "name": "additional_sambamba_flags",

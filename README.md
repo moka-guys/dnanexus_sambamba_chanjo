@@ -31,7 +31,7 @@ This output is then parsed by a custom python script to generate a file that can
 1. BAM file. This BAM file should be the same as used for variant calling, following all preprocessing.
 2. The associated BAM file index (.bai)
 3. A bed file in the sambamba format. This file is created by MokaBED and named in format Pan123sambamba.bed. 
-4. The minimum read depth/coverage required (integer, default = 150). 
+4. The minimum read depth/coverage required (integer). 
 5. Count overlapping mate reads once? This True/False boolean denotes whether to apply the -m flag. True counts overlapping mate reads once (default) whereas False counts each overlapping mate read seperately.
 6. Min base quality to be included (default = 25)
 7. Min mapping quality score to be included (default = 20)
