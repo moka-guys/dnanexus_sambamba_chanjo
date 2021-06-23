@@ -45,10 +45,39 @@
       "default": true
     },
     {
+      "name": "exclude_failed_quality_control",
+      "label": "Exclude reads which have failed quality_control",
+      "help": "Should reads which have failed quality_control be excluded? True = Exclude. False = Include",
+      "class": "boolean",
+      "default": true
+    },
+    {
+      "name": "exclude_duplicate_reads",
+      "label": "Exclude duplicate reads",
+      "help": "Should duplicate reads be excluded? True = Exclude. False = Include",
+      "class": "boolean",
+      "default": true
+    },
+    {
       "name": "coverage_level",
       "label": "coverage level",
       "help": "The level of coverage to be reported.",
-      "class": "string"
+      "class": "string",
+      "default": "150"
+    },
+    {
+      "name": "additional_sambamba_flags",
+      "label": "Additional Sambamba flags",
+      "help": "Free form text field to send additional flag options to Sambamba",
+      "class": "string",
+      "default": ""
+    },
+    {
+      "name": "additional_filter_commands",
+      "label": "Additional Sambamba filter commands",
+      "help": "Free form text field to send additional filter options to Sambamba (text most start ' and ')",
+      "class": "string",
+      "default": ""
     },
     {
       "name": "min_base_qual",
