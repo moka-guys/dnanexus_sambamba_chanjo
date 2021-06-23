@@ -34,13 +34,13 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 if [[ "$exclude_failed_quality_control" == true ]]; then
 	filter_command="mapping_quality >= ${min_mapping_qual} and not failed_quality_control"
 else
-	filter_command="mapping_quality >= ${min_mapping_qual} and failed_quality_control"
+	filter_command="mapping_quality >= ${min_mapping_qual}"
 fi
 
 if [[ "$exclude_duplicate_reads" == true ]]; then
 	filter_command="${filter_command} and not duplicate"
 else
-	filter_command="${filter_command} and duplicate"
+	filter_command="${filter_command}"
 fi
 
 dqt='"' # Assign double quote to variable - avoids escape characters and issues they were causing with teh command
