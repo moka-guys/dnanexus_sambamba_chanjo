@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.10
+# dnanexus_sambamba_chanjo - v1.11
 
 ## What does this app do?
 This app utilises Chanjo and Sambamba to calculates coverage.
@@ -8,9 +8,10 @@ The `sambamba depth region` function is used with the following arguments:
 
 * -L bedfile    -   Only counts regions stated in the bedfile
 * -T n -   The required read depth (integer). For example, WES requires a minimum read depth of 20X, custom panels 30X whilst Oncology samples require a much higher read depth.
-* -t `nproc`    -   Utilise multiple threads - uses the total number of threads available.
+* -t $(nproc)    -   Utilise multiple threads - uses the total number of threads available.
 * -m    -   Does not count overlapping mate reads more than once.
-* -F "mapping_quality >= 20"    - Uses the BAM flag mapping quality to only count bases with a mapping quality >=20
+* -F "mapping_quality 20 and not failed_quality_control and not duplicate"    - DEFAULT: Uses the BAM flag mapping quality to only count bases with a mapping quality >=20, which have passed QC, and are not duplicates.
+* -q    -   Min base quality for that base to be counted.
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
 
@@ -30,9 +31,13 @@ This output is then parsed by a custom python script to generate a file that can
 1. BAM file. This BAM file should be the same as used for variant calling, following all preprocessing.
 2. The associated BAM file index (.bai)
 3. A bed file in the sambamba format. This file is created by MokaBED and named in format Pan123sambamba.bed. 
-4. The minimum read depth required (integer). 
+4. The minimum read depth/coverage required (integer). 
 5. Count overlapping mate reads once? This True/False boolean denotes whether to apply the -m flag. True counts overlapping mate reads once (default) whereas False counts each overlapping mate read seperately.
-
+6. Min base quality to be included (default = 25)
+7. Min mapping quality score to be included (default = 20)
+8. Exclude duplicate reads? This True/False boolean denotes whether to filter out reads that have failed quality control `- F not failed_quality_control`. True excludes reads that have failed quality control, false includes them.
+9. There is an `additional_sambamba_flags` free form text box for passing additional flags to Sambamba, this excludes arguments passed as a text string to the -F filter flag.
+10. There is an `additional_filter_commands` free form text box for passing additional arguments as a text string to the Sambamba -F filter flag.  Commands are appended to the existing filter so the text must start ` and ...`, where ... is the additional filter command (also note the leading space before `and`). 
 
 ## What does this app output?
 This app produces five outputs:

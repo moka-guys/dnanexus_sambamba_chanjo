@@ -28,12 +28,28 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 # -m does not count overlapping mate reads more than once
 # -F allows filtering using other BAM info eg mapping quality
 # check if -m flag is required
-if [[ "$merge_overlapping_mate_reads" == true ]]; then
-	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -m -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+
+# build command to send to sambamba filter 
+
+if [[ "$exclude_failed_quality_control" == true ]]; then
+	filter_command="mapping_quality >= ${min_mapping_qual} and not failed_quality_control"
 else
-	sambamba depth region -L bedfile -t `nproc` -T $coverage_level -F "mapping_quality >= 20" $bamfile_prefix.bam > sambamba_output.bed
+	filter_command="mapping_quality >= ${min_mapping_qual}"
 fi
 
+if [[ "$exclude_duplicate_reads" == true ]]; then
+	filter_command="${filter_command} and not duplicate"
+else
+	filter_command="${filter_command}"
+fi
+
+dqt='"' # Assign double quote to variable - avoids escape characters and issues they were causing with teh command
+
+if [[ "$merge_overlapping_mate_reads" == true ]]; then
+	eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${additional_sambamba_flags} -m -F ${dqt}${filter_command}${additional_filter_commands}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
+else
+	eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${additional_sambamba_flags} -F ${dqt}${filter_command}${additional_filter_commands}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
+fi
 
 # chanjo can be modified using a yaml config file. The threshold level can be specified here using coverage_level input.
 printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - $coverage_level" > /home/dnanexus/chanjo.yaml

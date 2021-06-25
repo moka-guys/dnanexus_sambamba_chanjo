@@ -1,12 +1,12 @@
 {
-  "name": "chanjo_sambamba_coverage_v1.10",
-  "title": "coverage using sambamba and chanjo v1.10",
-  "summary": "v1.10 - coverage using sambamba and chanjo",
+  "name": "chanjo_sambamba_coverage_v1.11",
+  "title": "coverage using sambamba and chanjo v1.11",
+  "summary": "v1.11 - coverage using sambamba and chanjo",
   "tags": [
     "coverage"
   ],
   "properties": {
-    "github release": "v1.10"
+    "github release": "v1.11"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -15,34 +15,82 @@
       "label": "sambamba_bed",
       "help": "A samamba bedfile.",
       "class": "file",
-      "patterns": ["*.bed"]
+      "patterns": [
+        "*.bed"
+      ]
     },
     {
       "name": "bamfile",
       "label": "bamfile",
       "help": "bam file.",
       "class": "file",
-      "patterns": ["*.bam"]
+      "patterns": [
+        "*.bam"
+      ]
     },
     {
       "name": "bam_index",
       "label": "bamfile_index",
       "help": "bam index.",
       "class": "file",
-      "patterns": ["*.bai"]
+      "patterns": [
+        "*.bai"
+      ]
     },
     {
       "name": "merge_overlapping_mate_reads",
       "label": "count overlapping mate reads once",
       "help": "Should overlapping mate reads be counted once? True = counted once. False = counted twice",
       "class": "boolean",
-      "default":true
+      "default": true
+    },
+    {
+      "name": "exclude_failed_quality_control",
+      "label": "Exclude reads which have failed quality_control",
+      "help": "Should reads which have failed quality_control be excluded? True = Exclude. False = Include",
+      "class": "boolean",
+      "default": true
+    },
+    {
+      "name": "exclude_duplicate_reads",
+      "label": "Exclude duplicate reads",
+      "help": "Should duplicate reads be excluded? True = Exclude. False = Include",
+      "class": "boolean",
+      "default": true
     },
     {
       "name": "coverage_level",
       "label": "coverage level",
       "help": "The level of coverage to be reported.",
       "class": "string"
+    },
+    {
+      "name": "additional_sambamba_flags",
+      "label": "Additional Sambamba flags",
+      "help": "Free form text field to send additional flag options to Sambamba",
+      "class": "string",
+      "default": ""
+    },
+    {
+      "name": "additional_filter_commands",
+      "label": "Additional Sambamba filter commands",
+      "help": "Free form text field to send additional filter options to Sambamba (text most start ' and ')",
+      "class": "string",
+      "default": ""
+    },
+    {
+      "name": "min_base_qual",
+      "label": "min base quality score (-q)",
+      "help": "The minimum base quality score required to be counted.",
+      "class": "int",
+      "default": 25
+    },
+    {
+      "name": "min_mapping_qual",
+      "label": "min mapping quality score",
+      "help": "The minimum mapping quality score required to be counted.",
+      "class": "int",
+      "default": 20
     }
   ],
   "outputSpec": [
@@ -74,21 +122,19 @@
         "name": "sqlite3"
       }
     ],
-    "systemRequirementsByRegion": {
-      "aws:us-east-1": {
-        "main": {
-          "instanceType": "mem1_ssd1_x2"
-        }
-      }
-    },
-    "systemRequirements": {
-      "main": {
-        "instanceType": "mem1_ssd1_x2"
-      }
-    },
     "file": "src/code.sh",
     "release": "14.04",
     "interpreter": "bash",
     "distribution": "Ubuntu"
+  },
+  "ignoreReuse": false,
+  "regionalOptions": {
+    "aws:us-east-1": {
+      "systemRequirements": {
+        "main": {
+          "instanceType": "mem1_ssd1_x2"
+        }
+      }
+    }
   }
 }
