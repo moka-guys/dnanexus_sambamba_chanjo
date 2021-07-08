@@ -29,27 +29,40 @@ PATH=/home/dnanexus/miniconda2/bin:$PATH
 # -F allows filtering using other BAM info eg mapping quality
 # check if -m flag is required
 
-# build command to send to sambamba filter 
+### build command to send to sambamba filter ${filter_command} ###
+
+filter_command="mapping_quality >= ${min_mapping_qual}"
 
 if [[ "$exclude_failed_quality_control" == true ]]; then
-	filter_command="mapping_quality >= ${min_mapping_qual} and not failed_quality_control"
-else
-	filter_command="mapping_quality >= ${min_mapping_qual}"
+	filter_command="${filter_command} and not failed_quality_control"
 fi
 
 if [[ "$exclude_duplicate_reads" == true ]]; then
 	filter_command="${filter_command} and not duplicate"
-else
-	filter_command="${filter_command}"
 fi
 
-dqt='"' # Assign double quote to variable - avoids escape characters and issues they were causing with teh command
+# CHECK IF ${additional_filter_commands} IS NOT EMPTY
+if [ -n "$additional_filter_commands" ]; then
+	filter_command="${filter_command} and $additional_filter_commands"
+fi
+
+### build command to send to sambamba ${option_flags} ###
 
 if [[ "$merge_overlapping_mate_reads" == true ]]; then
-	eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${additional_sambamba_flags} -m -F ${dqt}${filter_command}${additional_filter_commands}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
+	option_flags=" -m "
 else
-	eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${additional_sambamba_flags} -F ${dqt}${filter_command}${additional_filter_commands}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
+	option_flags=""
 fi
+
+# CHECK IF ${additional_sambamba_flags} IS NOT EMPTY
+if [ -n "$additional_sambamba_flags" ]; then
+	option_flags="${option_flags} ${additional_sambamba_flags}"
+fi
+
+dqt='"' # Assign double quote to variable - avoids escape characters and issues they were causing with the filter command
+
+eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${option_flags} -F ${dqt}${filter_command}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
+
 
 # chanjo can be modified using a yaml config file. The threshold level can be specified here using coverage_level input.
 printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - $coverage_level" > /home/dnanexus/chanjo.yaml
