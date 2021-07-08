@@ -10,7 +10,7 @@ The `sambamba depth region` function is used with the following arguments:
 * -T n -   The required read depth (integer). For example, WES requires a minimum read depth of 20X, custom panels 30X whilst Oncology samples require a much higher read depth.
 * -t $(nproc)    -   Utilise multiple threads - uses the total number of threads available.
 * -m    -   Does not count overlapping mate reads more than once.
-* -F "mapping_quality 20 and not failed_quality_control and not duplicate"    - DEFAULT: Uses the BAM flag mapping quality to only count bases with a mapping quality >=20, which have passed QC, and are not duplicates.
+* -F "mapping_quality 20 and not failed_quality_control and not duplicate"    - DEFAULT: Uses the BAM flag mapping quality to only count bases with a mapping quality >=20, which have passed QC, and are not duplicates. Syntax can be found [here](https://github.com/biod/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax) 
 * -q    -   Min base quality for that base to be counted.
 
 The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
