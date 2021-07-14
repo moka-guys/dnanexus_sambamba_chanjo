@@ -4,6 +4,7 @@ import re
 import subprocess
 import time
 
+# TODO split monolithic test into many
 
 # TODO add to config file
 
