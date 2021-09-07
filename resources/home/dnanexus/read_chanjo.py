@@ -12,12 +12,15 @@ import os
 class read_chanjo():
     def __init__(self):
         self.path="/home/dnanexus/"
-        self.json_file = self.path+"chanjo_out.json"               
+        #self.path="/home/aled/Documents/210906_gene_level_coverage/exome/"
+        self.json_file = self.path+"chanjo_out.json"
         self.output_file=self.path+"chanjo_out.txt"
         self.sambamba_in=self.path+"sambamba_output.bed"
         self.exonlevel=self.path+"exon_level.txt"
+        self.genelevel=self.path+"gene_level.txt"
         # Read the bash variable which contains the minimum coverage level (specified in the app's $coverage_level input)
         self.coverage_level = str(os.environ['coverage_level'].rstrip())
+
 
     def read_json(self):
         # open output file
@@ -76,9 +79,47 @@ class read_chanjo():
         # close output file
         output.close()        
 
-
+    def gene_level(self):
+        """
+        A human readable gene level report is required to describe the % of each gene covered at the given read depth
+        This takes the chanjo json file and uses the entrezgeneid to search the sambamba BED file to pull out the gene symbol
+        """
+        # open exon level coverage output
+        output=open(self.genelevel, 'w')
+        # write header
+        output.write("\t".join(["gene symbol","percent_bases_covered at %s\n" % (self.coverage_level + "X")]))
+        # loop through newly created chanjo_out.txt - this has 3 columns- capture gene, percent_bases_covered and average coverage
+        with open(self.output_file,'r') as json:
+            for line in json:
+                # we want to capture the gene_symbol - set as empty variable for each gene/line in the input file
+                gene_symbol = ""
+                entrezgeneid,percent_bases_covered,average = line.split("\t")
+                # open and loop through sambamba.bed to match on entrezgeneid and then pull out corresponding gene symbol
+                with open(self.sambamba_in) as sambamba_bed:
+                    for line in sambamba_bed.readlines():
+                        chrom,chromStart,chromEnd,F3,F4,F5,F6,F7,readCount,meanCoverage,percentage600,sampleName = line.split("\t")
+                        # the column containing gene symbol is in format genesymbol;transcript
+                        # however the sambamba/bed includes some other regions, such as SNV control sites 
+                        # these have the entrezgeneid set to 0 and the column F6 in format ";rs123"
+                        # There are also clinically relevant SNVs whitelisted so we don't see incidental findings elsewhere in the gene eg CHEK2. 
+                        # These have the correct entrezgeneid present but unfortunately the gene symbol is not in column F6 (";rs123")
+                        # Therefore we need to hard code this gene symbol (until the bed file is corrected)
+                        if str(entrezgeneid) == "11200":
+                            gene_symbol = "CHEK2"
+                        # for all other entrezgeneids look to match columns but ignore control sites where entrezgeneid = 0.
+                        elif str(entrezgeneid) == str(F7) and str(entrezgeneid) != "0":
+                            gene_symbol = F6.split(";")[0]
+                # if the genesymbol has been identified
+                if gene_symbol:
+                    # the percent bases covered column appears to have a leading space. not wanted to change this incase it breaks downstream processes. use lstrip to remove
+                    output.write("\t".join([gene_symbol,percent_bases_covered.lstrip()+"\n"]))
+                # # used for testing
+                else:
+                    print "unable to find a gene symbol for entrezgeneid %s" % (entrezgeneid)
+        # close output file
+        output.close()
 if __name__ == '__main__':
     a=read_chanjo()
     a.read_json()
     a.exon_level()
-    
+    a.gene_level()

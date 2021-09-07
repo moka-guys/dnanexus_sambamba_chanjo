@@ -1,12 +1,12 @@
 {
-  "name": "chanjo_sambamba_coverage_v1.11",
-  "title": "coverage using sambamba and chanjo v1.11",
-  "summary": "v1.11 - coverage using sambamba and chanjo",
+  "name": "chanjo_sambamba_coverage_v1.12",
+  "title": "coverage using sambamba and chanjo v1.12",
+  "summary": "v1.12 - coverage using sambamba and chanjo",
   "tags": [
     "coverage"
   ],
   "properties": {
-    "github release": "v1.11"
+    "github release": "v1.12"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -123,7 +123,7 @@
       }
     ],
     "file": "src/code.sh",
-    "release": "14.04",
+    "release": "16.04",
     "interpreter": "bash",
     "distribution": "Ubuntu"
   },
@@ -132,7 +132,7 @@
     "aws:us-east-1": {
       "systemRequirements": {
         "main": {
-          "instanceType": "mem1_ssd1_x2"
+          "instanceType": "mem1_ssd1_v2_x2"
         }
       }
     }
