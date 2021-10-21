@@ -12,7 +12,6 @@ import os
 class read_chanjo():
     def __init__(self):
         self.path="/home/dnanexus/"
-        #self.path="/home/aled/Documents/210906_gene_level_coverage/exome/"
         self.json_file = self.path+"chanjo_out.json"
         self.output_file=self.path+"chanjo_out.txt"
         self.sambamba_in=self.path+"sambamba_output.bed"

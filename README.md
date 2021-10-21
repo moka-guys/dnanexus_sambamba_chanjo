@@ -45,7 +45,7 @@ This app produces six outputs.
 
 
 1. Exon level coverage (*exon_level.txt). This consists of any exons which are covered <100% at the stated coverage (coverage/)
-2. gene wide coverage for moka (*chanjo_txt). This takes the chano output and reformats it so coverage can be inserted into Moka (WES samples). For each gene the entrezgene id, % covered at the the given X and average coverage in a tab seperated list (coverage/)
+2. gene wide coverage for moka (*chanjo_txt). This takes the chanjo output and reformats it so coverage can be inserted into Moka (WES samples). For each gene the entrezgene id, % covered at the the given X and average coverage in a tab seperated list (coverage/)
 3. Gene level coverage report (*gene_level.txt). Introduced in v1.12. This is a further modification of the chanjo output, but including the human readable gene symbol for the analyst (coverage/)
 4. The raw chanjo output (*chanjo_out.json). The chanjo output in JSON format (coverage/raw_output)
 5. The raw sambamba output file(*sambamba_output.bed). The sambamba BED file that is input to the app with columns describing coverage added to the end of each row (coverage/raw_output)
