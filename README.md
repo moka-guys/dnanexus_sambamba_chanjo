@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.11
+# dnanexus_sambamba_chanjo - v1.12
 
 ## What does this app do?
 This app utilises Chanjo and Sambamba to calculates coverage.
@@ -24,8 +24,8 @@ The chanjo database is set up (`chanjo init -a; chanjo db setup`) and the sambam
 
 The bed file is used to extract a unique list of gene symbols and the coverage for each gene is then calculated (`chanjo calculate gene $gene >> chanjo_out.json`)
 
-This output is then parsed by a custom python script to generate a file that can be downloaded, and loaded into MOKA to generate clinical coverage reports.
-
+### Read_chanjo.py
+A python script parses the sambamba and chanjo outputs and generates three files in formats that can be used downstream (see below)
 
 ## What data are required for this app to run?
 1. BAM file. This BAM file should be the same as used for variant calling, following all preprocessing.
@@ -40,16 +40,16 @@ This output is then parsed by a custom python script to generate a file that can
 10. There is an `additional_filter_commands` free form text box for passing additional arguments as a text string to the Sambamba -F filter flag.  Commands are appended to the existing filter so the text must start ` and ...`, where ... is the additional filter command (also note the leading space before `and`). 
 
 ## What does this app output?
-This app produces five outputs:
+All outputs are saved into a folder 'coverage'. Files that are not needed routinely saved into subfolders.
+This app produces six outputs.
 
-1. The raw sambamba output file
-2. The parsed sambamba output that identifies exons covered <100% at the stated coverage
-3. The raw chanjo output
-4. The parsed chanjo output that can be loaded into MOKA.
-5. The chanjo.yaml file which provides the settings to chanjo
 
-All files are output to a folder 'coverage'
-the chanjo.yaml file is saved within a subfolder called 'chanjo_yaml' and the raw sambamba and chanjo files are output to a subfolder called 'raw_output'
+1. Exon level coverage (*exon_level.txt). This consists of any exons which are covered <100% at the stated coverage (coverage/)
+2. gene wide coverage for moka (*chanjo_txt). This takes the chanjo output and reformats it so coverage can be inserted into Moka (WES samples). For each gene the entrezgene id, % covered at the the given X and average coverage in a tab seperated list (coverage/)
+3. Gene level coverage report (*gene_level.txt). Introduced in v1.12. This is a further modification of the chanjo output, but including the human readable gene symbol for the analyst (coverage/)
+4. The raw chanjo output (*chanjo_out.json). The chanjo output in JSON format (coverage/raw_output)
+5. The raw sambamba output file(*sambamba_output.bed). The sambamba BED file that is input to the app with columns describing coverage added to the end of each row (coverage/raw_output)
+6. The chanjo.yaml file (*chanjo.yaml). YAML file which provides the settings to chanjo (coverage/chanjo_yaml)
 
 
 ## Created by

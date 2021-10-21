@@ -99,6 +99,7 @@ mv /home/dnanexus/chanjo.yaml ~/out/chanjo_yaml/coverage/chanjo_yaml/$bamfile_pr
 #move and rename the output of the python script
 mv chanjo_out.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.chanjo_txt
 mv exon_level.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.exon_level.txt
+mv gene_level.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.gene_level.txt
 
 
 dx-upload-all-outputs --parallel
