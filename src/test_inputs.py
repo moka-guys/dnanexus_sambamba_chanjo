@@ -8,7 +8,7 @@ import time
 
 # TODO add to config file
 
-app_version_to_test = "chanjo_sambamba_coverage_v1.11"
+app_version_to_test = "chanjo_sambamba_coverage_v1.13"
 
 
 # TODO remove single necessity for single quotes

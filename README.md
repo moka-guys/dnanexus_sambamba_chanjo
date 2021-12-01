@@ -84,7 +84,7 @@ There are two modules utilizing pytest which can be invoked by running:
 python3.8 -m pytest --setup-show
 ```
 
-* `test_inputs.py` - this tests that various combinations of input parameters don't brak the app.
+* `test_inputs.py` - this tests that various combinations of input parameters don't break the app.
 * `test_outputs.py` - this tests data run through a previous version of the app for MokaWES, MokaPipe, and MokaAmp and checks that the output is similar.
 
 ## Created by
