@@ -15,8 +15,6 @@ app_version_to_test = "chanjo_sambamba_coverage_v1.13"
 
 # TODO Replace list with dictionary
 
-# TODO Refactor code to replace sleep function
-
 # Combination of potential Sambamba settings
 # test_name, merge_overlapping, exclude_failed_qc, exclude_duplicate, sambamba_flags, sambamba_filter
 sambamba_settings = [
@@ -171,16 +169,17 @@ def run_dx_jobs():
         dx_job_id = str(stream.stdout).rstrip()
         dx_job_ids.append(dx_job_id)
     """
-    # Wait for all jobs to finish before running tests
-    waiting_for_these_jobs = " ".join(dx_job_ids)
-    process = subprocess.call(
-        "dx wait {waiting_for_these_jobs}", shell=True, stdout=subprocess.PIPE
-    )
+    Wait for all jobs to finish before running tests
     """
+    max_minutes_for_completion=15
+    counter=0
+    while set(dx_job_ids) != set(check_job_status(len(sambamba_settings))):
+        time.sleep(60)
+        if counter == max_minutes_for_completion:
+            print("Test has timed out")
+            break
+        counter += 1
 
-    status_cmd = ("dx find jobs --num-results 12 --project " + 'project-G3f0qj804fp7F74V9BVgJQZf'  " --brief --state done")
-    time.sleep(10)
-    
     return dx_job_ids
 
 
