@@ -69,8 +69,8 @@ dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.13 \
 -i exclude_failed_quality_control=true \
 -i exclude_duplicate_reads=true \
 -i coverage_level="150" \
--i additional_sambamba_flags="" \
--i additional_filter_commands="" \
+-i additional_sambamba_flags="--annotate" \
+-i additional_filter_commands="not mate_is_unmapped and first_of_pair" \
 -i min_base_qual="25" \
 -i min_mapping_qual="20" \
 --brief
