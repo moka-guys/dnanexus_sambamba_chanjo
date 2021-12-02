@@ -118,6 +118,16 @@ sambamba_settings = [
     ],
 ]
 
+def check_job_status(num_of_jobs_to_monitor):
+    # Typically set num_of_jobs_to_monitor to number of conditions in 'sambamba_settings' defined above
+    completed_jobs_ids = subprocess.run(
+        "dx find jobs --num-results " + str(num_of_jobs_to_monitor) + " --project project-G3f0qj804fp7F74V9BVgJQZf --brief --state done",
+        check=True,
+        shell=True,
+        stdout=subprocess.PIPE
+    )
+    return completed_jobs_ids.stdout.decode('utf-8').splitlines()
+
 
 @pytest.fixture()
 def run_dx_jobs():
@@ -167,7 +177,10 @@ def run_dx_jobs():
         "dx wait {waiting_for_these_jobs}", shell=True, stdout=subprocess.PIPE
     )
     """
-    time.sleep(240)
+
+    status_cmd = ("dx find jobs --num-results 12 --project " + 'project-G3f0qj804fp7F74V9BVgJQZf'  " --brief --state done")
+    time.sleep(10)
+    
     return dx_job_ids
 
 
