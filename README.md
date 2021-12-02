@@ -78,10 +78,13 @@ dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.13 \
 
 ## Testing
 
-There are two modules utilizing pytest which can be invoked by running:
+There are two modules utilizing pytest which can be invoked by running the following commands from within the app's folder:
 
 ```bash
-python3.8 -m pytest --setup-show
+# Run all modules
+pytest --setup-show
+# Individual modules can be run using the format:
+pytest /src/test_inputs.py
 ```
 
 * `test_inputs.py` - this tests that various combinations of input parameters don't break the app.
