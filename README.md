@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v1.11
+# dnanexus_sambamba_chanjo - v1.13
 
 ## What does this app do?
 
@@ -60,8 +60,8 @@ the chanjo.yaml file is saved within a subfolder called 'chanjo_yaml' and the ra
 The `dx-toolkit` can be used to run the app from the command line using the format below:
 
 ```bash
-dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.11 \
---name "congenicaV1.11_test_standard settings" \
+dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.13 \
+--name "congenicaV1.13_test_standard settings" \
 -i sambamba_bed=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-cgEB1sJsCtyIzNnD6rju57Nhe \
 -i bamfile=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-Bk5bbrm6YuQGjAIupujWk0FjO \
 -i bam_index=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-BppUJ6p6cJGPS2WWEIWqzMBOc \
