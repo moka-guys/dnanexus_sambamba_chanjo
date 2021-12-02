@@ -6,7 +6,7 @@ import requests
 import subprocess
 import time
 
-working_project = "project-G3f0qj804fp7F74V9BVgJQZf"  # 003_Sambamba_Testing
+working_project = "project-G3f0qj804fp7F74V9BVgJQZf"  # 003_211202_Sambamba_Testing
 
 MokaWES_config = {
     "benchmark_project": "project-G39450Q0X2181QPKKZZ5JYK4",

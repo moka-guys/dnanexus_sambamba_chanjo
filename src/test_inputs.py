@@ -122,7 +122,7 @@ sambamba_settings = [
 @pytest.fixture()
 def run_dx_jobs():
     """Run sambamba app with various combination of inputs"""
-    # Change to project 003_Sambamba_Testing
+    # Change to project 003_211202_Sambamba_Testing
     subprocess.run(
         "dx select project-G3f0qj804fp7F74V9BVgJQZf",
         check=True,
@@ -139,7 +139,7 @@ def run_dx_jobs():
             sambamba_filter,
         ) = opt_list
         stream = subprocess.run(
-            f'dx run 003_Sambamba_Testing:{app_version_to_test} \
+            f'dx run 003_211202_Sambamba_Testing:{app_version_to_test} \
         --yes --name {test_name} \
         -i sambamba_bed=project-ByfFPz00jy1fk6PjpZ95F27J:file-FgQ0G1Q0jy1j1221FzBqG089 \
         -i bamfile=project-G0FykV00GfYYJkF2B35Q27Yb:file-G0X31380zQkqYz293jk7VgJV \
