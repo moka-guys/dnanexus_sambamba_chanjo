@@ -150,8 +150,8 @@ def run_dx_jobs():
             f'dx run 003_211202_Sambamba_Testing:{app_version_to_test} \
         --yes --name {test_name} \
         -i sambamba_bed=project-ByfFPz00jy1fk6PjpZ95F27J:file-FgQ0G1Q0jy1j1221FzBqG089 \
-        -i bamfile=project-G0FykV00GfYYJkF2B35Q27Yb:file-G0X31380zQkqYz293jk7VgJV \
-        -i bam_index=project-G0FykV00GfYYJkF2B35Q27Yb:file-G0X31380zQkz3B403gvKK1y0 \
+        -i bamfile=project-G3f0qj804fp7F74V9BVgJQZf:file-G0X31380zQkqYz293jk7VgJV \
+        -i bam_index=project-G3f0qj804fp7F74V9BVgJQZf:file-G0X31380zQkz3B403gvKK1y0 \
         -i merge_overlapping_mate_reads={merge_overlapping_boolean} \
         -i exclude_failed_quality_control={exclude_failed_qc_boolean} \
         -i exclude_duplicate_reads={exclude_duplicate_boolean} \
