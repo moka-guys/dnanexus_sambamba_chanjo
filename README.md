@@ -84,12 +84,12 @@ There are two modules utilizing pytest which can be invoked by running the follo
 # Run all modules
 pytest --setup-show
 # Individual modules can be run using the format:
-pytest /src/test_inputs.py
+pytest /src/test_inputs.py --setup-show
 ```
 
 * `test_inputs.py` - this tests that various combinations of input parameters don't break the app.
 * `test_outputs.py` - this tests data run through a previous version of the app for MokaWES, MokaPipe, and MokaAmp and checks that the output is similar.
-
+### NOTE: Currently test_outputs.py tests that Sambamba will run with the output of multiple pipelines, but does not automatically compare that output.  This can be done manually by comparing the produced files to those from the original.
 ## Created by
 
 This app was created within the Viapath Genome Informatics section
