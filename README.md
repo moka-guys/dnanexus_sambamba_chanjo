@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 # dnanexus_sambamba_chanjo - v1.13
-=======
-# dnanexus_sambamba_chanjo - v1.12
->>>>>>> a57c79dfddfb157b5f78c08162f72a64740d61bb
 
 ## What does this app do?
 
