@@ -30,14 +30,8 @@ The sambamba output is used by Chanjo to calculate the % of bases covered at the
 The chanjo database is set up (`chanjo init -a; chanjo db setup`) and the sambamba file linked (`chanjo  link sambamba_output.bed`) and loaded (`chanjo load sambamba_output.bed`).
 
 The bed file is used to extract a unique list of gene symbols and the coverage for each gene is then calculated (`chanjo calculate gene $gene >> chanjo_out.json`)
-
-<<<<<<< HEAD
-This output is then parsed by a custom python script to generate a file that can be downloaded, and loaded into MOKA to generate clinical coverage reports.
-=======
 ### Read_chanjo.py
 A python script parses the sambamba and chanjo outputs and generates three files in formats that can be used downstream (see below)
->>>>>>> a57c79dfddfb157b5f78c08162f72a64740d61bb
-
 ## What data are required for this app to run?
 
 1. BAM file. This BAM file should be the same as used for variant calling, following all preprocessing.
