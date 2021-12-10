@@ -1,12 +1,12 @@
 {
-  "name": "chanjo_sambamba_coverage_v1.12",
-  "title": "coverage using sambamba and chanjo v1.12",
-  "summary": "v1.12 - coverage using sambamba and chanjo",
+  "name": "chanjo_sambamba_coverage_v1.13",
+  "title": "coverage using sambamba and chanjo v1.13",
+  "summary": "v1.13 - coverage using sambamba and chanjo",
   "tags": [
     "coverage"
   ],
   "properties": {
-    "github release": "v1.12"
+    "github release": "v1.13"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
