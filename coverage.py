@@ -269,10 +269,34 @@ def run_sambamba(args: argparse.Namespace, output_dir: Path) -> Path:
 
     command.append(str(args.bam_file))
 
-    # Execute and redirect output to a file
-    result = run_command(command)
-    with open(output_bed, "w") as f_out:
-        f_out.write(result.stdout)
+    # Execute sambamba with suppressed stderr to avoid verbose warnings
+    print(f"🚀 Running command: {' '.join(command)}")
+    try:
+        # Conditionally suppress stderr based on verbose flag
+        stderr_setting = None if args.verbose else subprocess.DEVNULL
+        
+        process = subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=stderr_setting,  # Show stderr if verbose, suppress otherwise
+            text=True,
+        )
+        
+        # Write stdout to output file
+        with open(output_bed, "w") as f_out:
+            f_out.write(process.stdout)
+            
+    except FileNotFoundError as e:
+        print(f"❌ Error: Command 'sambamba' not found.")
+        print("Please ensure sambamba is installed and in your system's PATH.")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Sambamba command failed with return code: {e.returncode}")
+        if not args.verbose:
+            print("💡 Tip: Use --verbose flag to see sambamba's detailed error messages")
+        print("This may indicate an issue with the input files or command parameters.")
+        sys.exit(1)
         
     print(f"✅ Sambamba analysis complete. Output saved to: {output_bed}")
     return output_bed
@@ -287,14 +311,14 @@ def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Pa
         sambamba_bed: Path to sambamba output BED file
         args: Command line arguments
         output_dir: Output directory
-        panel_genes: Optional set of gene symbols to filter results (panel-specific filtering)
+        panel_genes: Optional set of gene symbols to filter results (only used for PDF, not text files)
     """
     print("\n--- Processing and Generating Final Reports ---")
     
     if panel_genes:
-        print(f"   - Applying panel-specific filtering for {len(panel_genes)} genes")
+        print(f"   - Panel filtering will be applied to PDF report only ({len(panel_genes)} genes)")
     
-    # --- Part 1: Create gene-level statistics from sambamba output ---
+    # --- Part 1: Create gene-level statistics from sambamba output (ALL GENES) ---
     gene_stats: Dict[str, Dict[str, List[float]]] = {}
     
     with open(sambamba_bed, 'r') as f_in:
@@ -306,6 +330,7 @@ def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Pa
                 # Extract gene info and coverage data
                 gene_info = fields[6] # Column 7: gene;transcript format
                 entrez_id = fields[7] # Column 8: Entrez ID 
+                coords = fields[3] # Column 4: chr-start-stop format
                 mean_coverage = float(fields[9]) if len(fields) > 9 and fields[9] != '.' else 0.0 # Column 10
                 completeness = float(fields[10]) if len(fields) > 10 and fields[10] != '.' else 0.0 # Column 11
                 
@@ -320,38 +345,60 @@ def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Pa
                 if entrez_id == "11200":
                     gene_symbol = "CHEK2"
                 
-                # Apply panel filtering if enabled
-                if panel_genes and gene_symbol not in panel_genes:
+                # Calculate exon length from coordinates
+                try:
+                    chrom, start, stop = coords.split('-')
+                    exon_length = int(stop) - int(start) + 1
+                except (ValueError, IndexError):
+                    print(f"   - Warning: Could not parse coordinates '{coords}' for {gene_symbol}, skipping")
                     continue
                 
+                # NO PANEL FILTERING HERE - include all genes in text report
                 if gene_symbol not in gene_stats:
-                    gene_stats[gene_symbol] = {'coverage': [], 'completeness': []}
+                    gene_stats[gene_symbol] = {
+                        'coverage_values': [], 
+                        'completeness_values': [], 
+                        'exon_lengths': [],
+                        'total_length': 0
+                    }
                 
-                gene_stats[gene_symbol]['coverage'].append(mean_coverage)
-                gene_stats[gene_symbol]['completeness'].append(completeness)
+                gene_stats[gene_symbol]['coverage_values'].append(mean_coverage)
+                gene_stats[gene_symbol]['completeness_values'].append(completeness)
+                gene_stats[gene_symbol]['exon_lengths'].append(exon_length)
+                gene_stats[gene_symbol]['total_length'] += exon_length
 
-    # Generate gene-level report
+    # Generate gene-level report (ALL GENES) with length-weighted averages
     gene_report_path = output_dir / GENE_REPORT_FILENAME
     with open(gene_report_path, 'w') as f_out:
-        f_out.write("gene_symbol\tmean_coverage\taverage_completeness_at_{}X\texon_count\n".format(args.coverage_level))
+        f_out.write("gene_symbol\tmean_coverage\taverage_completeness_at_{}X\texon_count\ttotal_length_bp\n".format(args.coverage_level))
         
         for gene_symbol in sorted(gene_stats.keys()):
             stats = gene_stats[gene_symbol]
-            avg_coverage = sum(stats['coverage']) / len(stats['coverage']) if stats['coverage'] else 0
-            avg_completeness = sum(stats['completeness']) / len(stats['completeness']) if stats['completeness'] else 0
-            exon_count = len(stats['coverage'])
-            f_out.write(f"{gene_symbol}\t{avg_coverage:.2f}\t{avg_completeness:.2f}\t{exon_count}\n")
+            
+            # Calculate length-weighted averages
+            if stats['coverage_values'] and stats['total_length'] > 0:
+                # Length-weighted mean coverage
+                weighted_coverage_sum = sum(cov * length for cov, length in zip(stats['coverage_values'], stats['exon_lengths']))
+                avg_coverage = weighted_coverage_sum / stats['total_length']
+                
+                # Length-weighted mean completeness
+                weighted_completeness_sum = sum(comp * length for comp, length in zip(stats['completeness_values'], stats['exon_lengths']))
+                avg_completeness = weighted_completeness_sum / stats['total_length']
+            else:
+                avg_coverage = 0
+                avg_completeness = 0
+            
+            exon_count = len(stats['coverage_values'])
+            total_length = stats['total_length']
+            
+            f_out.write(f"{gene_symbol}\t{avg_coverage:.2f}\t{avg_completeness:.2f}\t{exon_count}\t{total_length}\n")
 
     total_genes = len(gene_stats)
-    if panel_genes:
-        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} panel genes)")
-    else:
-        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} genes)")
+    print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} genes)")
         
-    # --- Part 2: Create an exon-level report for regions below 100% coverage ---
+    # --- Part 2: Create an exon-level report for regions below 100% coverage (ALL EXONS) ---
     exon_report_path = output_dir / EXON_REPORT_FILENAME
     exon_count = 0
-    filtered_exon_count = 0
     
     with open(sambamba_bed, 'r') as f_in, open(exon_report_path, 'w') as f_out:
         f_out.write("gene_symbol\ttranscript\tentrez_id\tchr\tstart\tstop\tmean_coverage\tcompleteness\n")
@@ -385,18 +432,11 @@ def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Pa
                 else:
                     gene_symbol, transcript = gene_info, "N/A"
                 
-                # Apply panel filtering if enabled
-                if panel_genes and gene_symbol not in panel_genes:
-                    filtered_exon_count += 1
-                    continue
-                
+                # NO PANEL FILTERING HERE - include all exons in text report
                 f_out.write(f"{gene_symbol}\t{transcript}\t{entrez_id}\t{chrom}\t{start}\t{stop}\t{mean_coverage}\t{completeness}\n")
                 
-    if panel_genes and filtered_exon_count > 0:
-        print(f"   - Generated exon-level report: {exon_report_path} (filtered {filtered_exon_count}/{exon_count} exons not in panel)")
-    else:
-        print(f"   - Generated exon-level report: {exon_report_path}")
-
+    print(f"   - Generated exon-level report: {exon_report_path} ({exon_count} exons with <100% coverage)")
+ 
     print(f"\n✅ All reports generated successfully in: {output_dir}")
 
 
@@ -472,6 +512,7 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
             if len(fields) >= 11:
                 gene_info = fields[6]
                 entrez_id = fields[7]
+                coords = fields[3]
                 mean_coverage = float(fields[9]) if fields[9] != '.' else 0.0
                 completeness = float(fields[10]) if fields[10] != '.' else 0.0
                 
@@ -482,12 +523,13 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
                 if entrez_id == "11200":
                     gene_symbol = "CHEK2"
                 
-                # Collect all exon data
-                coords = fields[3]
+                # Calculate exon length
                 try:
                     chrom, start, stop = coords.split('-')
+                    exon_length = int(stop) - int(start) + 1
                 except ValueError:
                     chrom, start, stop = "N/A", "N/A", "N/A"
+                    exon_length = 0  # Skip if can't parse coordinates
                 
                 if ";" in gene_info:
                     transcript = gene_info.split(";", 1)[1]
@@ -501,19 +543,40 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
                 exon_data.append([gene_symbol, transcript, entrez_id, chrom, start, stop, 
                                 f"{mean_coverage:.1f}", f"{completeness:.1f}"])
                 
-                if gene_symbol not in gene_stats:
-                    gene_stats[gene_symbol] = {'coverage': [], 'completeness': []}
-                
-                gene_stats[gene_symbol]['coverage'].append(mean_coverage)
-                gene_stats[gene_symbol]['completeness'].append(completeness)
+                # Only collect length data if we have valid coordinates
+                if exon_length > 0:
+                    if gene_symbol not in gene_stats:
+                        gene_stats[gene_symbol] = {
+                            'coverage_values': [], 
+                            'completeness_values': [], 
+                            'exon_lengths': [],
+                            'total_length': 0
+                        }
+                    
+                    gene_stats[gene_symbol]['coverage_values'].append(mean_coverage)
+                    gene_stats[gene_symbol]['completeness_values'].append(completeness)
+                    gene_stats[gene_symbol]['exon_lengths'].append(exon_length)
+                    gene_stats[gene_symbol]['total_length'] += exon_length
     
-    # Prepare gene summary data
+    # Prepare gene summary data with length-weighted averages
     gene_summary_data = [['Gene Symbol', 'Mean Coverage', f'Completeness at {args.coverage_level}X', 'Exon Count']]
     for gene_symbol in sorted(gene_stats.keys()):
         stats = gene_stats[gene_symbol]
-        avg_coverage = sum(stats['coverage']) / len(stats['coverage']) if stats['coverage'] else 0
-        avg_completeness = sum(stats['completeness']) / len(stats['completeness']) if stats['completeness'] else 0
-        exon_count = len(stats['coverage'])
+        
+        # Calculate length-weighted averages
+        if stats['coverage_values'] and stats['total_length'] > 0:
+            # Length-weighted mean coverage
+            weighted_coverage_sum = sum(cov * length for cov, length in zip(stats['coverage_values'], stats['exon_lengths']))
+            avg_coverage = weighted_coverage_sum / stats['total_length']
+            
+            # Length-weighted mean completeness
+            weighted_completeness_sum = sum(comp * length for comp, length in zip(stats['completeness_values'], stats['exon_lengths']))
+            avg_completeness = weighted_completeness_sum / stats['total_length']
+        else:
+            avg_coverage = 0
+            avg_completeness = 0
+        
+        exon_count = len(stats['coverage_values'])
         gene_summary_data.append([gene_symbol, f"{avg_coverage:.1f}", f"{avg_completeness:.1f}", str(exon_count)])
     
     # Prepare exon summary data (only exons with <100% coverage)
@@ -619,11 +682,11 @@ def main():
     # --- Sambamba Settings ---
     parser.add_argument("-T", "--coverage-level", type=int, default=30, help="Sambamba: Minimum coverage level required.")
     parser.add_argument("--min-mapping-qual", type=int, default=20, help="Sambamba: Minimum mapping quality.")
-    parser.add_argument("--min-base-qual", type=int, default=20, help="Sambamba: Minimum base quality.")
-    parser.add_argument("--exclude-failed-qc", action='store_true', help="Sambamba: Exclude reads that failed quality control.")
-    parser.add_argument("--exclude-duplicates", action='store_true', help="Sambamba: Exclude duplicate reads.")
-    parser.add_argument("--merge-overlapping-mates", action='store_true', help="Sambamba: Count overlapping mate reads only once (-m flag).")
-    parser.add_argument("--additional-filter", type=str, help="Sambamba: Additional filter commands (e.g., 'first_of_pair').")
+    parser.add_argument("--min-base-qual", type=int, default=10, help="Sambamba: Minimum base quality.")
+    parser.add_argument("--exclude-failed-qc", action='store_true', default=True, help="Sambamba: Exclude reads that failed quality control.")
+    parser.add_argument("--exclude-duplicates", action='store_true', default=True, help="Sambamba: Exclude duplicate reads.")
+    parser.add_argument("--merge-overlapping-mates", action='store_true', default=True, help="Sambamba: Count overlapping mate reads only once (-m flag).")
+    parser.add_argument("--additional-filter", type=str, default="not (unmapped or secondary_alignment)", help="Sambamba: Additional filter commands (e.g., 'first_of_pair').")
     parser.add_argument("--additional-sambamba-flags", type=str, help="Sambamba: Other flags to pass, enclosed in quotes.")
 
     # --- General Settings ---
@@ -635,6 +698,9 @@ def main():
 
     # --- PDF Report ---
     parser.add_argument("--pdf-report", action='store_true', help="Generate a comprehensive PDF coverage report.")
+
+    # --- Verbosity ---
+    parser.add_argument("--verbose", action='store_true', help="Show sambamba warnings and verbose output (default: suppressed).")
 
     args = parser.parse_args()
 
@@ -667,6 +733,13 @@ def main():
     
     if args.pdf_report:
         generate_pdf_report(sambamba_output, args, args.output_dir, panel_genes)
+    
+    # Clean up downloaded panel BED file if it exists
+    if panel_genes:
+        panel_bed_files = list(args.output_dir.glob("Pan*_CNV.bed"))
+        for panel_bed_file in panel_bed_files:
+            panel_bed_file.unlink()
+            print(f"   - Cleaned up downloaded panel BED file: {panel_bed_file.name}")
 
 
 if __name__ == "__main__":
