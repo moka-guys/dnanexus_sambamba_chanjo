@@ -452,11 +452,12 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     """
     try:
         from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, BaseDocTemplate, PageTemplate, Frame
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+        from reportlab.graphics.shapes import Line, Drawing
     except ImportError:
         print("   - Warning: reportlab not installed. Install with: pip install reportlab")
         print("   - Skipping PDF report generation")
@@ -470,8 +471,47 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     pdf_filename = f"{sample_id}_coverage_report.pdf"
     pdf_path = output_dir / pdf_filename
     
-    # Create PDF document
-    doc = SimpleDocTemplate(str(pdf_path), pagesize=letter,
+    # Custom document template class with header on every page
+    class HeaderDocTemplate(BaseDocTemplate):
+        def __init__(self, filename, sample_id, current_date, **kwargs):
+            BaseDocTemplate.__init__(self, filename, **kwargs)
+            self.sample_id = sample_id
+            self.current_date = current_date
+            
+            # Define frame for content (leaving space for header)
+            frame = Frame(
+                self.leftMargin, self.bottomMargin,
+                self.width, self.height - 50,  # 50 points for header space
+                id='main_frame'
+            )
+            
+            # Create page template with header
+            template = PageTemplate(id='header_template', frames=[frame], onPage=self.add_header)
+            self.addPageTemplates([template])
+        
+        def add_header(self, canvas, doc):
+            """Add header to every page"""
+            canvas.saveState()
+            
+            # Header text styles - smaller fonts
+            canvas.setFont("Helvetica-Bold", 8)
+            header_left = f"{self.sample_id} coverage report"
+            canvas.drawString(self.leftMargin, self.height + self.topMargin - 25, header_left)
+            
+            canvas.setFont("Helvetica", 8)
+            header_right = self.current_date
+            canvas.drawRightString(self.width + self.leftMargin, self.height + self.topMargin - 25, header_right)
+            
+            # Header line
+            canvas.setStrokeColor(colors.black)
+            canvas.setLineWidth(0.5)
+            canvas.line(self.leftMargin, self.height + self.topMargin - 35, 
+                       self.width + self.leftMargin, self.height + self.topMargin - 35)
+            
+            canvas.restoreState()
+    
+    # Create PDF document with custom header template
+    doc = HeaderDocTemplate(str(pdf_path), sample_id, current_date, pagesize=letter,
                            rightMargin=72, leftMargin=72, topMargin=100, bottomMargin=72)
     
     # Define styles
@@ -482,14 +522,6 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
         fontSize=16,
         spaceAfter=30,
         alignment=TA_CENTER
-    )
-    
-    header_style = ParagraphStyle(
-        'Header',
-        parent=styles['Normal'],
-        fontSize=12,
-        alignment=TA_RIGHT,
-        spaceAfter=20
     )
     
     section_style = ParagraphStyle(
@@ -588,16 +620,19 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     # Build PDF content
     content = []
     
-    # Header with sample ID and date
-    header_text = f"<b>{sample_id}</b> coverage report<br/>{current_date}"
-    content.append(Paragraph(header_text, header_style))
+    # Page 1: Title and Summary
+    content.append(Paragraph("Coverage Analysis Report", title_style))
     content.append(Spacer(1, 20))
     
-    # Page 1: Summary
     if panel_genes:
-        genes_text = f"Panel genes analyzed: {', '.join(sorted(panel_genes)) if len(panel_genes) <= 10 else ', '.join(sorted(list(panel_genes))[:10]) + f' (and {len(panel_genes) - 10} more)'}"
+        genes_text = f"Panel genes analysed: {', '.join(sorted(panel_genes)) if len(panel_genes) <= 10 else ', '.join(sorted(list(panel_genes))[:10]) + f' (and {len(panel_genes) - 10} more)'}"
     else:
-        genes_text = f"All genes analyzed: {len(gene_stats)} total"
+        # Get sorted list of all genes for display
+        gene_list = sorted(gene_stats.keys())
+        if len(gene_list) <= 10:
+            genes_text = f"Genes analysed: {', '.join(gene_list)}"
+        else:
+            genes_text = f"Genes analysed: {', '.join(gene_list[:10])} (and {len(gene_list) - 10} more)"
     
     content.append(Paragraph(genes_text, styles['Normal']))
     content.append(Spacer(1, 20))
@@ -609,7 +644,7 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
         gene_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -629,7 +664,7 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
         exon_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('FONTSIZE', (0, 1), (-1, -1), 8),
@@ -653,7 +688,7 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
         all_exons_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('FONTSIZE', (0, 1), (-1, -1), 7),
