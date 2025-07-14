@@ -5,114 +5,79 @@
 set -e -x -o pipefail
 
 #######################################################################
+# Install Python dependencies
+#######################################################################
+pip3 install reportlab
+
+#######################################################################
 # Download inputs
 #######################################################################
 
 dx download "$sambamba_bed" -o bedfile
-dx download "$bamfile"
-dx download "$bam_index" 
 
-# add miniconda to path to ensure correct version of python is used.
-PATH=/home/dnanexus/miniconda2/bin:$PATH
+# Get the actual BAM filename and download with original name
+bamfile_name=$(dx describe "$bamfile" --json | jq -r '.name')
+dx download "$bamfile" -o "$bamfile_name"
+dx download "$bam_index" -o "${bamfile_name}.bai"
 
 #######################################################################
-# run sambama
+# Extract BAM filename prefix for outputs
 #######################################################################
 
-# any errors with not being able to find the bedfile or reference file - check the bedfile for headers (and remove any!)
-# Use the coverage_level input to specify the coverage to be reported
-# Use sambaba depth to append coverage to sambamba_output.bed 
-# -L is the bedfile to define the regions that coverage must be calculated for
-# -T is the minimum coverage required for the amplicon
-# -t is the number of threads available
-# -m does not count overlapping mate reads more than once
-# -F allows filtering using other BAM info eg mapping quality
-# check if -m flag is required
+bamfile_prefix=$(basename "$bamfile_name" .bam)
 
-### build command to send to sambamba filter ${filter_command} ###
+#######################################################################
+# Run coverage analysis using the Python script
+#######################################################################
 
-filter_command="mapping_quality >= ${min_mapping_qual}"
+# The Python script handles sambamba execution and report generation
+# Pass all the DNAnexus inputs as arguments to the Python script
 
+# Build the command with conditional arguments
+coverage_cmd="python3 /home/dnanexus/coverage.py --bam-file \"${bamfile_name}\" --bed-file bedfile --coverage-level ${coverage_level} --min-mapping-qual ${min_mapping_qual} --min-base-qual ${min_base_qual} --additional-filter \"${additional_filter_commands}\" --threads $(nproc) --output-dir coverage_results --panel-filter --pdf-report"
+
+# Add conditional flags based on boolean inputs
 if [[ "$exclude_failed_quality_control" == true ]]; then
-	filter_command="${filter_command} and not failed_quality_control"
+    coverage_cmd="$coverage_cmd --exclude-failed-qc"
 fi
 
 if [[ "$exclude_duplicate_reads" == true ]]; then
-	filter_command="${filter_command} and not duplicate"
+    coverage_cmd="$coverage_cmd --exclude-duplicates"
 fi
-
-# CHECK IF ${additional_filter_commands} IS NOT EMPTY
-if [ -n "$additional_filter_commands" ]; then
-	filter_command="${filter_command} and $additional_filter_commands"
-fi
-
-### build command to send to sambamba ${option_flags} ###
 
 if [[ "$merge_overlapping_mate_reads" == true ]]; then
-	option_flags=" -m "
-else
-	option_flags=""
+    coverage_cmd="$coverage_cmd --merge-overlapping-mates"
 fi
 
-# CHECK IF ${additional_sambamba_flags} IS NOT EMPTY
+# Add additional sambamba flags if provided
 if [ -n "$additional_sambamba_flags" ]; then
-	option_flags="${option_flags} ${additional_sambamba_flags}"
+    coverage_cmd="$coverage_cmd --additional-sambamba-flags \"${additional_sambamba_flags}\""
 fi
 
-dqt='"' # Assign double quote to variable - avoids escape characters and issues they were causing with the filter command
-
-eval "sambamba depth region -L bedfile -t $(nproc) -T ${coverage_level} -q ${min_base_qual} ${option_flags} -F ${dqt}${filter_command}${dqt} ${bamfile_prefix}.bam" > sambamba_output.bed
-
-
-# chanjo can be modified using a yaml config file. The threshold level can be specified here using coverage_level input.
-printf "database: coverage.sqlite3\nsambamba:\n  cov_treshold:\n  - $coverage_level" > /home/dnanexus/chanjo.yaml
-
-
-#head sambamba_output.bed
-#######################################################################
-# run chanjo
-#######################################################################
-
-#initiate database
-chanjo init -a
-chanjo db setup
-# link bedfile
-chanjo  link sambamba_output.bed
-#load bedfile
-chanjo  load sambamba_output.bed
-
-# create a list of unique gene symbols
-LIST=$(cat -n sambamba_output.bed | awk -F '\t' '$1>1 {print $9}' | sort | uniq)
-
-#loop through list and get chanjo output
-for gene in $LIST
-do
-	chanjo calculate gene $gene >> chanjo_out.json
-done
-
-#######################################################################
-# clean up chanjo outputs using python script
-#######################################################################
-#python script parses the chanjo_out.json and sambamba_out, creating a chanjo_out.csv and a file
-python read_chanjo.py
+# Execute the coverage analysis
+eval $coverage_cmd
 
 #######################################################################
 # Upload results
 #######################################################################
-# make output folder
-mkdir -p ~/out/chanjo_raw_output/coverage/raw_output/
-mkdir -p ~/out/chanjo_yaml/coverage/chanjo_yaml/
-mkdir -p ~/out/chanjo_output_to_report/coverage/
 
-# move and rename the chanjo out.json and sambamba_out
-mv chanjo_out.json ~/out/chanjo_raw_output/coverage/raw_output/$bamfile_prefix.chanjo_out_json
-mv sambamba_output.bed ~/out/chanjo_raw_output/coverage/raw_output/$bamfile_prefix.sambamba_output.bed
-mv /home/dnanexus/chanjo.yaml ~/out/chanjo_yaml/coverage/chanjo_yaml/$bamfile_prefix.chanjo.yaml
+# Create output directories
+mkdir -p ~/out/sambamba_output/coverage/
+mkdir -p ~/out/gene_level_report/coverage/
+mkdir -p ~/out/exon_level_report/coverage/
+mkdir -p ~/out/pdf_report/coverage/
 
-#move and rename the output of the python script
-mv chanjo_out.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.chanjo_txt
-mv exon_level.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.exon_level.txt
-mv gene_level.txt ~/out/chanjo_output_to_report/coverage/$bamfile_prefix.gene_level.txt
+# Move and rename the outputs from the Python script
+mv coverage_results/sambamba_output.bed ~/out/sambamba_output/coverage/${bamfile_prefix}.sambamba_output.bed
+mv coverage_results/gene_level.txt ~/out/gene_level_report/coverage/${bamfile_prefix}.gene_level.txt
+mv coverage_results/exon_level.txt ~/out/exon_level_report/coverage/${bamfile_prefix}.exon_level.txt
 
+# Move PDF report if it exists
+if [ -f "coverage_results/${bamfile_prefix}_coverage_report.pdf" ]; then
+    mv coverage_results/${bamfile_prefix}_coverage_report.pdf ~/out/pdf_report/coverage/${bamfile_prefix}_coverage_report.pdf
+else
+    echo "PDF report not generated, skipping PDF output"
+fi
 
+# Upload all outputs
 dx-upload-all-outputs --parallel
