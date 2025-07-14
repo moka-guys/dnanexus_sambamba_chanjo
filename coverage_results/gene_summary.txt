@@ -1,0 +1,7 @@
+Sample ID: NGS698PoolA_15_368301_JB_F_CP2R207Via_Pan4150
+Mean Coverage: 396.5205603881411
+Completeness at 10X: None
+Completeness at 15X: None
+Completeness at 20X: None
+Completeness at 50X: None
+Completeness at 100X: None
