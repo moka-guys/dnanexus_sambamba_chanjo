@@ -452,12 +452,13 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     """
     try:
         from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, BaseDocTemplate, PageTemplate, Frame
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, BaseDocTemplate, PageTemplate, Frame, KeepTogether
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
         from reportlab.graphics.shapes import Line, Drawing
+        from reportlab.platypus.flowables import HRFlowable
     except ImportError:
         print("   - Warning: reportlab not installed. Install with: pip install reportlab")
         print("   - Skipping PDF report generation")
@@ -527,9 +528,23 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     section_style = ParagraphStyle(
         'Section',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=12,  # Reduced from 14
         spaceAfter=12,
         spaceBefore=20
+    )
+    
+    # Style for boxed content
+    boxed_style = ParagraphStyle(
+        'Boxed',
+        parent=styles['Normal'],
+        fontSize=9,  # Reduced from 11
+        leftIndent=10,
+        rightIndent=10,
+        spaceAfter=10,
+        spaceBefore=10,
+        borderWidth=1,
+        borderColor=colors.black,
+        borderPadding=8
     )
     
     # Collect gene and exon data
@@ -634,22 +649,30 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
         else:
             genes_text = f"Genes analysed: {', '.join(gene_list[:10])} (and {len(gene_list) - 10} more)"
     
-    content.append(Paragraph(genes_text, styles['Normal']))
+    content.append(Paragraph(genes_text, boxed_style))
     content.append(Spacer(1, 20))
     
     # Gene coverage summary
     content.append(Paragraph("Gene Coverage Summary:", section_style))
+    content.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=colors.black, spaceBefore=3, spaceAfter=10))
+    
     if len(gene_summary_data) > 1:
-        gene_table = Table(gene_summary_data)
+        # Set column widths to make table span full width
+        col_widths = [2*inch, 1.5*inch, 1.5*inch, 1*inch]  # Adjust widths for 4 columns
+        gene_table = Table(gene_summary_data, colWidths=col_widths)
         gene_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),  # Match exon table
+            ('FONTSIZE', (0, 1), (-1, -1), 8),  # Match exon table
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
         ]))
         content.append(gene_table)
     else:
@@ -659,43 +682,86 @@ def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir
     
     # Exon coverage summary  
     content.append(Paragraph("Exons with < 100% coverage @ 30x:", section_style))
+    content.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=colors.black, spaceBefore=3, spaceAfter=10))
+    
     if len(exon_summary_data) > 1:
-        exon_table = Table(exon_summary_data)
-        exon_table.setStyle(TableStyle([
+        # Set column widths for 8 columns to span full width
+        col_widths = [1*inch, 1.2*inch, 0.8*inch, 0.6*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch]
+        exon_table = Table(exon_summary_data, colWidths=col_widths)
+        
+        # Build table style with conditional formatting for failed exons
+        table_style_commands = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('FONTSIZE', (0, 1), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
+        ]
+        
+        # Add red highlighting for rows with completeness < 90% (very poor coverage)
+        for i, exon in enumerate(exon_summary_data[1:], 1):  # Skip header row
+            if len(exon) > 7:  # Make sure we have completeness data
+                try:
+                    completeness = float(exon[7])  # Completeness is in column 7
+                    if completeness < 90.0:  # Highlight very poor coverage in red
+                        table_style_commands.append(('BACKGROUND', (0, i), (-1, i), colors.lightcoral))
+                        table_style_commands.append(('TEXTCOLOR', (0, i), (-1, i), colors.black))
+                except (ValueError, IndexError):
+                    pass  # Skip if we can't parse the completeness value
+        
+        exon_table.setStyle(TableStyle(table_style_commands))
         content.append(exon_table)
     else:
         content.append(Paragraph("All exons have 100% coverage at a minimum of 30x.", styles['Normal']))
     
     # Page 2: All exons
     content.append(PageBreak())
-    content.append(Paragraph("Complete Exon Coverage Report", title_style))
+    content.append(Paragraph("Complete Exon Coverage Report", section_style))
+    content.append(HRFlowable(width="100%", thickness=1, lineCap='round', color=colors.black, spaceBefore=3, spaceAfter=10))
     
     all_exons_data = [['Gene Symbol', 'Transcript', 'Entrez ID', 'Chr', 'Start', 'Stop', 'Mean Coverage', 'Completeness']]
     all_exons_data.extend(exon_data)
     
     if len(all_exons_data) > 1:
-        all_exons_table = Table(all_exons_data)
-        all_exons_table.setStyle(TableStyle([
+        # Set column widths for 8 columns to span full width
+        col_widths = [1*inch, 1.2*inch, 0.8*inch, 0.6*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch]
+        all_exons_table = Table(all_exons_data, colWidths=col_widths)
+        
+        # Build table style with conditional formatting for failed exons
+        table_style_commands = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('FONTSIZE', (0, 1), (-1, -1), 7),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4)
+        ]
+        
+        # Add red highlighting for rows with completeness < 90% (very poor coverage)
+        for i, exon in enumerate(all_exons_data[1:], 1):  # Skip header row
+            if len(exon) > 7:  # Make sure we have completeness data
+                try:
+                    completeness = float(exon[7])  # Completeness is in column 7
+                    if completeness < 90.0:  # Highlight very poor coverage in red
+                        table_style_commands.append(('BACKGROUND', (0, i), (-1, i), colors.lightcoral))
+                        table_style_commands.append(('TEXTCOLOR', (0, i), (-1, i), colors.black))
+                except (ValueError, IndexError):
+                    pass  # Skip if we can't parse the completeness value
+        
+        all_exons_table.setStyle(TableStyle(table_style_commands))
         content.append(all_exons_table)
     
     # Build PDF
