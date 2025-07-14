@@ -11,15 +11,12 @@ import urllib.request
 import tempfile
 from pathlib import Path
 from typing import List, Dict, Set, Optional
+from datetime import datetime
 
 # --- Configuration ---
 SAMBAMBA_OUTPUT_FILENAME = "sambamba_output.bed"
-CHANJO_DB_NAME = "coverage.sqlite3"
-CHANJO_CONFIG_FILENAME = "chanjo.yaml"
-CHANJO_JSON_OUTPUT_FILENAME = "chanjo_raw_output.json"
-GENE_SUMMARY_FILENAME = "gene_summary.txt"
-EXON_REPORT_FILENAME = "exon_level_report.csv"
-GENE_REPORT_FILENAME = "gene_level_report.csv"
+EXON_REPORT_FILENAME = "exon_level.txt"
+GENE_REPORT_FILENAME = "gene_level.txt"
 
 # --- Panel Configuration URLs ---
 PANEL_CONFIG_URL = "https://raw.githubusercontent.com/moka-guys/automate_demultiplex/main/config/panel_config.py"
@@ -281,150 +278,13 @@ def run_sambamba(args: argparse.Namespace, output_dir: Path) -> Path:
     return output_bed
 
 
-def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path) -> Path:
+def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Path, panel_genes: Optional[Set[str]] = None):
     """
-    Initializes a chanjo database, loads original BED data, and calculates coverage.
-    """
-    print("\n--- Running Chanjo ---")
-    chanjo_db_path = output_dir / CHANJO_DB_NAME
-    chanjo_config_path = output_dir / CHANJO_CONFIG_FILENAME
-    chanjo_json_output = output_dir / CHANJO_JSON_OUTPUT_FILENAME
-    
-    # 1. Create chanjo config file
-    config_content = (
-        f"database: {chanjo_db_path.name}\n"
-        f"sambamba:\n"
-        f"  cov_threshold:\n"
-        f"    - {args.coverage_level}"
-    )
-    with open(chanjo_config_path, "w") as f:
-        f.write(config_content)
-    print(f"   - Wrote chanjo config to: {chanjo_config_path}")
-
-    # 2. Initialize and set up the database
-    if chanjo_db_path.exists():
-        print(f"   - Deleting existing database: {chanjo_db_path}")
-        chanjo_db_path.unlink()
-        
-    run_command(["chanjo", "init", "-a"], cwd=output_dir)
-    run_command(["chanjo", "db", "setup"], cwd=output_dir)
-    print(f"   - Initialized new database: {chanjo_db_path}")
-
-    # 3. Convert BED file to chanjo format and link/load
-    # Chanjo expects a specific 7-column BED format, but our file has 7 columns in a different arrangement
-    # Input format: chr, start, end, name, transcript, gene_id, gene_symbol  
-    # Chanjo format: chr, start, end, name, transcript, gene_id, gene_symbol
-    chanjo_bed_file = output_dir / "chanjo_format.bed"
-    bed_file_abs = args.bed_file.resolve()
-    
-    # Convert BED file to chanjo format
-    skipped_count = 0
-    processed_count = 0
-    with open(bed_file_abs, 'r') as f_in, open(chanjo_bed_file, 'w') as f_out:
-        for line in f_in:
-            if line.startswith('#'):
-                continue
-            parts = line.strip().split('\t')
-            if len(parts) >= 7:  # 7-column format
-                gene_id = parts[5]  # Column 6
-                gene_symbol = parts[6]  # Column 7
-                
-                # Skip entries with non-numeric gene IDs (like Ensembl IDs)
-                if not gene_id.isdigit():
-                    skipped_count += 1
-                    continue
-                    
-                # Output in chanjo format: chr, start, end, name, transcript, gene_id, gene_symbol
-                # Use parts[4] as transcript since the input format seems to have transcript in column 5
-                transcript = parts[4] if len(parts) > 4 else 'UNKNOWN'
-                f_out.write(f"{parts[0]}\t{parts[1]}\t{parts[2]}\t{parts[3]}\t{transcript}\t{gene_id}\t{gene_symbol}\n")
-                processed_count += 1
-    
-    print(f"   - Converted BED file to chanjo format: {chanjo_bed_file}")
-    print(f"   - Processed {processed_count} entries, skipped {skipped_count} entries with non-numeric gene IDs")
-    
-    run_command(["chanjo", "link", str(chanjo_bed_file)], cwd=output_dir)
-    run_command(["chanjo", "load", str(sambamba_output)], cwd=output_dir)
-    print(f"   - Linked transcript definitions from: {chanjo_bed_file}")
-    print(f"   - Loaded coverage data from: {sambamba_output}")
-
-    # 4. Get unique gene list from original BED file (column 6 - EntrezID) 
-    gene_ids = set()
-    with open(args.bed_file, "r") as f_in:
-        for line in f_in:
-            if line.startswith("#"):
-                continue
-            parts = line.strip().split("\t")
-            if len(parts) >= 6:  # Changed from 8 to 6 for 7-column format
-                gene_id = parts[5]  # Changed from parts[7] to parts[5] (column 6)
-                if gene_id and gene_id != '0' and gene_id.isdigit():
-                    gene_ids.add(gene_id)
-    
-    unique_genes = sorted(list(gene_ids))
-    print(f"   - Found {len(unique_genes)} unique gene IDs to analyze.")
-
-    # 5. Generate per-gene coverage statistics in legacy format
-    # Instead of using chanjo calculate coverage, we'll process sambamba output directly
-    # to match the legacy format: {"genes": {"gene_id": {"completeness_30": X, "mean_coverage": Y}}}
-    
-    print(f"   - Generating per-gene coverage statistics for {len(unique_genes)} genes...")
-    
-    # Calculate per-gene statistics from sambamba output
-    gene_stats = {}
-    sample_id = os.path.splitext(os.path.basename(sambamba_output))[0]
-    
-    with open(sambamba_output, 'r') as f:
-        for line in f:
-            if line.startswith('#'):
-                continue
-            fields = line.strip().split('\t')
-            if len(fields) >= 11:
-                # Extract gene info and coverage data
-                gene_info = fields[6] if len(fields) > 6 else ""
-                entrez_id = fields[7] if len(fields) > 7 else ""
-                mean_coverage = float(fields[9]) if len(fields) > 9 and fields[9] != '.' else 0.0
-                completeness = float(fields[10]) if len(fields) > 10 and fields[10] != '.' else 0.0
-                
-                # Only include numeric gene IDs
-                if entrez_id and entrez_id.isdigit():
-                    if entrez_id not in gene_stats:
-                        gene_stats[entrez_id] = {'coverage_values': [], 'completeness_values': []}
-                    
-                    gene_stats[entrez_id]['coverage_values'].append(mean_coverage)
-                    gene_stats[entrez_id]['completeness_values'].append(completeness)
-    
-    # Generate JSON output in legacy format - one line per gene
-    with open(chanjo_json_output, "w") as f_out:
-        for gene_id in sorted(gene_stats.keys(), key=int):
-            stats = gene_stats[gene_id]
-            avg_coverage = sum(stats['coverage_values']) / len(stats['coverage_values']) if stats['coverage_values'] else 0.0
-            avg_completeness = sum(stats['completeness_values']) / len(stats['completeness_values']) if stats['completeness_values'] else 0.0
-            
-            # Create legacy format JSON object
-            gene_json = {
-                "genes": {
-                    gene_id: {
-                        f"completeness_{args.coverage_level}": avg_completeness,
-                        "mean_coverage": avg_coverage
-                    }
-                },
-                "sample_id": sample_id
-            }
-            
-            f_out.write(json.dumps(gene_json) + "\n")
-
-    print(f"✅ Chanjo analysis complete. Per-gene statistics saved to: {chanjo_json_output}")
-    return chanjo_json_output
-
-
-def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namespace, output_dir: Path, panel_genes: Optional[Set[str]] = None):
-    """
-    Parses the outputs from sambamba and chanjo to create final reports.
+    Parses the outputs from sambamba to create final reports.
     This function is a Python 3 rewrite of the logic in `read_chanjo.py`.
     
     Args:
         sambamba_bed: Path to sambamba output BED file
-        chanjo_json: Path to chanjo JSON output file 
         args: Command line arguments
         output_dir: Output directory
         panel_genes: Optional set of gene symbols to filter results (panel-specific filtering)
@@ -434,60 +294,73 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
     if panel_genes:
         print(f"   - Applying panel-specific filtering for {len(panel_genes)} genes")
     
-    # --- Part 1: Create a simple summary from Chanjo's JSON output (overall stats) ---
-    gene_summary_path = output_dir / GENE_SUMMARY_FILENAME
+    # --- Part 1: Create gene-level statistics from sambamba output ---
+    gene_stats: Dict[str, Dict[str, List[float]]] = {}
     
-    # Read the line-delimited JSON and collect all genes
-    all_genes = {}
-    sample_id = "unknown"
-    
-    with open(chanjo_json, 'r') as f_in:
+    with open(sambamba_bed, 'r') as f_in:
         for line in f_in:
-            if line.strip():
-                data = json.loads(line)
-                sample_id = data.get('sample_id', sample_id)
-                genes_data = data.get('genes', {})
-                all_genes.update(genes_data)
-    
-    # Calculate overall statistics
-    if all_genes:
-        total_coverage = sum(gene_data.get('mean_coverage', 0) for gene_data in all_genes.values())
-        avg_coverage = total_coverage / len(all_genes)
-        
-        # Get coverage level from first gene's completeness key
-        coverage_level = args.coverage_level
-        completeness_key = f"completeness_{coverage_level}"
-        total_completeness = sum(gene_data.get(completeness_key, 0) for gene_data in all_genes.values())
-        avg_completeness = total_completeness / len(all_genes)
-    else:
-        avg_coverage = 0
-        avg_completeness = 0
-    
-    with open(gene_summary_path, 'w') as f_out:
-        f_out.write(f"Sample ID: {sample_id}\n")
-        f_out.write(f"Mean Coverage: {avg_coverage:.2f}\n")
-        f_out.write(f"Completeness at {args.coverage_level}X: {avg_completeness:.2f}\n")
-        f_out.write(f"Total Genes Analyzed: {len(all_genes)}\n")
-        if panel_genes:
-            f_out.write(f"Panel Genes: {len(panel_genes)} genes\n")
-    
-    print(f"   - Generated overall summary: {gene_summary_path}")
+            if line.startswith('#'):
+                continue
+            fields = line.strip().split('\t')
+            if len(fields) >= 11:
+                # Extract gene info and coverage data
+                gene_info = fields[6] # Column 7: gene;transcript format
+                entrez_id = fields[7] # Column 8: Entrez ID 
+                mean_coverage = float(fields[9]) if len(fields) > 9 and fields[9] != '.' else 0.0 # Column 10
+                completeness = float(fields[10]) if len(fields) > 10 and fields[10] != '.' else 0.0 # Column 11
+                
+                # Skip non-numeric gene IDs
+                if not entrez_id.isdigit():
+                    continue
+                
+                # Extract gene symbol
+                gene_symbol = gene_info.split(';')[0] if ';' in gene_info else gene_info
+                
+                # Special hardcoded case from original script
+                if entrez_id == "11200":
+                    gene_symbol = "CHEK2"
+                
+                # Apply panel filtering if enabled
+                if panel_genes and gene_symbol not in panel_genes:
+                    continue
+                
+                if gene_symbol not in gene_stats:
+                    gene_stats[gene_symbol] = {'coverage': [], 'completeness': []}
+                
+                gene_stats[gene_symbol]['coverage'].append(mean_coverage)
+                gene_stats[gene_symbol]['completeness'].append(completeness)
 
+    # Generate gene-level report
+    gene_report_path = output_dir / GENE_REPORT_FILENAME
+    with open(gene_report_path, 'w') as f_out:
+        f_out.write("gene_symbol\tmean_coverage\taverage_completeness_at_{}X\texon_count\n".format(args.coverage_level))
+        
+        for gene_symbol in sorted(gene_stats.keys()):
+            stats = gene_stats[gene_symbol]
+            avg_coverage = sum(stats['coverage']) / len(stats['coverage']) if stats['coverage'] else 0
+            avg_completeness = sum(stats['completeness']) / len(stats['completeness']) if stats['completeness'] else 0
+            exon_count = len(stats['coverage'])
+            f_out.write(f"{gene_symbol}\t{avg_coverage:.2f}\t{avg_completeness:.2f}\t{exon_count}\n")
+
+    total_genes = len(gene_stats)
+    if panel_genes:
+        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} panel genes)")
+    else:
+        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} genes)")
+        
     # --- Part 2: Create an exon-level report for regions below 100% coverage ---
     exon_report_path = output_dir / EXON_REPORT_FILENAME
     exon_count = 0
     filtered_exon_count = 0
     
-    with open(sambamba_bed, 'r') as f_in, open(exon_report_path, 'w', newline='') as f_out:
-        writer = csv.writer(f_out)
-        writer.writerow(["gene_symbol", "transcript", "entrez_id", "chr", "start", "stop", "mean_coverage", "completeness"])
+    with open(sambamba_bed, 'r') as f_in, open(exon_report_path, 'w') as f_out:
+        f_out.write("gene_symbol\ttranscript\tentrez_id\tchr\tstart\tstop\tmean_coverage\tcompleteness\n")
         
         for line in f_in:
             if line.startswith('#'):
                 continue
             
             fields = line.strip().split('\t')
-            # Expected format: chrom, start, end, name, score, strand, gene;transcript, entrezID, ...
             if len(fields) < 11:
                 continue
                 
@@ -517,73 +390,225 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
                     filtered_exon_count += 1
                     continue
                 
-                writer.writerow([gene_symbol, transcript, entrez_id, chrom, start, stop, mean_coverage, completeness])
+                f_out.write(f"{gene_symbol}\t{transcript}\t{entrez_id}\t{chrom}\t{start}\t{stop}\t{mean_coverage}\t{completeness}\n")
                 
     if panel_genes and filtered_exon_count > 0:
         print(f"   - Generated exon-level report: {exon_report_path} (filtered {filtered_exon_count}/{exon_count} exons not in panel)")
     else:
         print(f"   - Generated exon-level report: {exon_report_path}")
 
-    # --- Part 3: Create a gene-level report from sambamba data ---
-    # Calculate average coverage and completeness per gene from sambamba output
-    gene_stats: Dict[str, Dict[str, List[float]]] = {}
+    print(f"\n✅ All reports generated successfully in: {output_dir}")
+
+
+def generate_pdf_report(sambamba_bed: Path, args: argparse.Namespace, output_dir: Path, panel_genes: Optional[Set[str]] = None):
+    """
+    Generates a comprehensive PDF coverage report.
+    
+    Args:
+        sambamba_bed: Path to sambamba output BED file
+        args: Command line arguments
+        output_dir: Output directory
+        panel_genes: Optional set of gene symbols for panel filtering
+    """
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    except ImportError:
+        print("   - Warning: reportlab not installed. Install with: pip install reportlab")
+        print("   - Skipping PDF report generation")
+        return None
+
+    print("\n--- Generating PDF Report ---")
+    
+    # Generate sample ID and report info
+    sample_id = os.path.splitext(os.path.basename(args.bam_file))[0]
+    current_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+    pdf_filename = f"{sample_id}_coverage_report.pdf"
+    pdf_path = output_dir / pdf_filename
+    
+    # Create PDF document
+    doc = SimpleDocTemplate(str(pdf_path), pagesize=letter,
+                           rightMargin=72, leftMargin=72, topMargin=100, bottomMargin=72)
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=30,
+        alignment=TA_CENTER
+    )
+    
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=TA_RIGHT,
+        spaceAfter=20
+    )
+    
+    section_style = ParagraphStyle(
+        'Section',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=12,
+        spaceBefore=20
+    )
+    
+    # Collect gene and exon data
+    gene_stats = {}
+    exon_data = []
     
     with open(sambamba_bed, 'r') as f_in:
         for line in f_in:
             if line.startswith('#'):
                 continue
             fields = line.strip().split('\t')
-            if len(fields) >= 11:  # sambamba output has more columns
+            if len(fields) >= 11:
                 gene_info = fields[6]
                 entrez_id = fields[7]
                 mean_coverage = float(fields[9]) if fields[9] != '.' else 0.0
                 completeness = float(fields[10]) if fields[10] != '.' else 0.0
                 
-                # Skip non-numeric gene IDs
                 if not entrez_id.isdigit():
                     continue
                 
-                # Extract gene symbol
                 gene_symbol = gene_info.split(';')[0] if ';' in gene_info else gene_info
-                
-                # Special hardcoded case from original script
                 if entrez_id == "11200":
                     gene_symbol = "CHEK2"
+                
+                # Collect all exon data
+                coords = fields[3]
+                try:
+                    chrom, start, stop = coords.split('-')
+                except ValueError:
+                    chrom, start, stop = "N/A", "N/A", "N/A"
+                
+                if ";" in gene_info:
+                    transcript = gene_info.split(";", 1)[1]
+                else:
+                    transcript = "N/A"
                 
                 # Apply panel filtering if enabled
                 if panel_genes and gene_symbol not in panel_genes:
                     continue
+                
+                exon_data.append([gene_symbol, transcript, entrez_id, chrom, start, stop, 
+                                f"{mean_coverage:.1f}", f"{completeness:.1f}"])
                 
                 if gene_symbol not in gene_stats:
                     gene_stats[gene_symbol] = {'coverage': [], 'completeness': []}
                 
                 gene_stats[gene_symbol]['coverage'].append(mean_coverage)
                 gene_stats[gene_symbol]['completeness'].append(completeness)
-
-    # Generate gene-level report
-    gene_report_path = output_dir / GENE_REPORT_FILENAME
-    with open(gene_report_path, 'w', newline='') as f_out:
-        writer = csv.writer(f_out)
-        writer.writerow(["gene_symbol", f"mean_coverage", f"average_completeness_at_{args.coverage_level}X", "exon_count"])
-        
-        for gene_symbol, stats in gene_stats.items():
-            avg_coverage = sum(stats['coverage']) / len(stats['coverage']) if stats['coverage'] else 0
-            avg_completeness = sum(stats['completeness']) / len(stats['completeness']) if stats['completeness'] else 0
-            exon_count = len(stats['coverage'])
-            writer.writerow([gene_symbol, f"{avg_coverage:.2f}", f"{avg_completeness:.2f}", exon_count])
-
-    total_genes = len(gene_stats)
+    
+    # Prepare gene summary data
+    gene_summary_data = [['Gene Symbol', 'Mean Coverage', f'Completeness at {args.coverage_level}X', 'Exon Count']]
+    for gene_symbol in sorted(gene_stats.keys()):
+        stats = gene_stats[gene_symbol]
+        avg_coverage = sum(stats['coverage']) / len(stats['coverage']) if stats['coverage'] else 0
+        avg_completeness = sum(stats['completeness']) / len(stats['completeness']) if stats['completeness'] else 0
+        exon_count = len(stats['coverage'])
+        gene_summary_data.append([gene_symbol, f"{avg_coverage:.1f}", f"{avg_completeness:.1f}", str(exon_count)])
+    
+    # Prepare exon summary data (only exons with <100% coverage)
+    exon_summary_data = [['Gene Symbol', 'Transcript', 'Entrez ID', 'Chr', 'Start', 'Stop', 'Mean Coverage', 'Completeness']]
+    for exon in exon_data:
+        if float(exon[7]) < 100.0:  # completeness < 100%
+            exon_summary_data.append(exon)
+    
+    # Build PDF content
+    content = []
+    
+    # Header with sample ID and date
+    header_text = f"<b>{sample_id}</b> coverage report<br/>{current_date}"
+    content.append(Paragraph(header_text, header_style))
+    content.append(Spacer(1, 20))
+    
+    # Page 1: Summary
     if panel_genes:
-        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} panel genes)")
+        genes_text = f"Panel genes analyzed: {', '.join(sorted(panel_genes)) if len(panel_genes) <= 10 else ', '.join(sorted(list(panel_genes))[:10]) + f' (and {len(panel_genes) - 10} more)'}"
     else:
-        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} genes)")
-        
-    print(f"\n✅ All reports generated successfully in: {output_dir}")
+        genes_text = f"All genes analyzed: {len(gene_stats)} total"
+    
+    content.append(Paragraph(genes_text, styles['Normal']))
+    content.append(Spacer(1, 20))
+    
+    # Gene coverage summary
+    content.append(Paragraph("Gene Coverage Summary:", section_style))
+    if len(gene_summary_data) > 1:
+        gene_table = Table(gene_summary_data)
+        gene_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        content.append(gene_table)
+    else:
+        content.append(Paragraph("No gene data available.", styles['Normal']))
+    
+    content.append(Spacer(1, 20))
+    
+    # Exon coverage summary  
+    content.append(Paragraph("Exons with < 100% coverage @ 30x:", section_style))
+    if len(exon_summary_data) > 1:
+        exon_table = Table(exon_summary_data)
+        exon_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        content.append(exon_table)
+    else:
+        content.append(Paragraph("All exons have 100% coverage at a minimum of 30x.", styles['Normal']))
+    
+    # Page 2: All exons
+    content.append(PageBreak())
+    content.append(Paragraph("Complete Exon Coverage Report", title_style))
+    
+    all_exons_data = [['Gene Symbol', 'Transcript', 'Entrez ID', 'Chr', 'Start', 'Stop', 'Mean Coverage', 'Completeness']]
+    all_exons_data.extend(exon_data)
+    
+    if len(all_exons_data) > 1:
+        all_exons_table = Table(all_exons_data)
+        all_exons_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        content.append(all_exons_table)
+    
+    # Build PDF
+    doc.build(content)
+    print(f"   - Generated PDF report: {pdf_path}")
+    return pdf_path
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="A Python 3 script to run a sambamba and chanjo coverage analysis workflow.",
+        description="A Python 3 script to run sambamba coverage analysis and generate detailed reports.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
@@ -607,6 +632,9 @@ def main():
 
     # --- Panel Filtering ---
     parser.add_argument("--panel-filter", action='store_true', help="Enable panel-specific gene filtering based on BAM filename.")
+
+    # --- PDF Report ---
+    parser.add_argument("--pdf-report", action='store_true', help="Generate a comprehensive PDF coverage report.")
 
     args = parser.parse_args()
 
@@ -635,8 +663,10 @@ def main():
         panel_genes = None
 
     sambamba_output = run_sambamba(args, args.output_dir)
-    chanjo_output = run_chanjo(sambamba_output, args, args.output_dir)
-    process_results(sambamba_output, chanjo_output, args, args.output_dir, panel_genes)
+    process_results(sambamba_output, args, args.output_dir, panel_genes)
+    
+    if args.pdf_report:
+        generate_pdf_report(sambamba_output, args, args.output_dir, panel_genes)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,0 @@
-Sample ID: sambamba_output
-Mean Coverage: 395.08
-Completeness at 30X: 99.64
-Total Genes Analyzed: 674
-Panel Genes: 9 genes
