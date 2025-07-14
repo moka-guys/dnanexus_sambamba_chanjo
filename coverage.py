@@ -6,8 +6,11 @@ import sys
 import os
 import json
 import csv
+import re
+import urllib.request
+import tempfile
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Set, Optional
 
 # --- Configuration ---
 SAMBAMBA_OUTPUT_FILENAME = "sambamba_output.bed"
@@ -17,6 +20,191 @@ CHANJO_JSON_OUTPUT_FILENAME = "chanjo_raw_output.json"
 GENE_SUMMARY_FILENAME = "gene_summary.txt"
 EXON_REPORT_FILENAME = "exon_level_report.csv"
 GENE_REPORT_FILENAME = "gene_level_report.csv"
+
+# --- Panel Configuration URLs ---
+PANEL_CONFIG_URL = "https://raw.githubusercontent.com/moka-guys/automate_demultiplex/main/config/panel_config.py"
+DNANEXUS_PROJECT = "project-ByfFPz00jy1fk6PjpZ95F27J"
+
+
+def extract_pan_number_from_bam(bam_filename: str) -> Optional[str]:
+    """
+    Extracts the Pan number from a BAM filename.
+    
+    Args:
+        bam_filename: BAM filename like 'NGS698PoolA_15_368301_JB_F_CP2R207Via_Pan4150.bam'
+    
+    Returns:
+        Pan number like 'Pan4150' or None if not found
+    """
+    # Look for Pan followed by digits
+    match = re.search(r'(Pan\d+)', bam_filename)
+    return match.group(1) if match else None
+
+
+def download_panel_config() -> str:
+    """
+    Downloads the panel configuration file from the automate_demultiplex repository.
+    
+    Returns:
+        Content of the panel configuration file
+    """
+    print(f"   - Downloading panel configuration from: {PANEL_CONFIG_URL}")
+    with urllib.request.urlopen(PANEL_CONFIG_URL) as response:
+        return response.read().decode('utf-8')
+
+
+def extract_ed_cnvcalling_bedfile(panel_config_content: str, pan_number: str) -> Optional[str]:
+    """
+    Extracts the ed_cnvcalling_bedfile value for a specific Pan number.
+    
+    Args:
+        panel_config_content: Content of the panel_config.py file
+        pan_number: Pan number like 'Pan4150'
+    
+    Returns:
+        ed_cnvcalling_bedfile value or None if not found
+    """
+    # Look for the Pan configuration block
+    pan_pattern = rf'"{pan_number}":\s*\{{'
+    match = re.search(pan_pattern, panel_config_content)
+    
+    if not match:
+        return None
+    
+    # Find the ed_cnvcalling_bedfile line within this Pan block
+    # Look from the Pan definition to the next closing brace
+    start_pos = match.end()
+    
+    # Find the matching closing brace (simple approach - look for next },)
+    brace_count = 1
+    pos = start_pos
+    while pos < len(panel_config_content) and brace_count > 0:
+        if panel_config_content[pos] == '{':
+            brace_count += 1
+        elif panel_config_content[pos] == '}':
+            brace_count -= 1
+        pos += 1
+    
+    pan_block = panel_config_content[start_pos:pos-1]
+    
+    # Look for ed_cnvcalling_bedfile in this block
+    bedfile_match = re.search(r'"ed_cnvcalling_bedfile":\s*"([^"]+)"', pan_block)
+    return bedfile_match.group(1) if bedfile_match else None
+
+
+def download_panel_bed_file(bedfile_name: str, output_dir: Path) -> Optional[Path]:
+    """
+    Downloads the panel-specific BED file from DNAnexus.
+    
+    Args:
+        bedfile_name: Name like 'Pan5250'
+        output_dir: Directory to save the file
+    
+    Returns:
+        Path to downloaded BED file or None if failed
+    """
+    bed_filename = f"{bedfile_name}_CNV.bed"
+    dx_path = f"{DNANEXUS_PROJECT}:/Data/BED/{bed_filename}"
+    local_path = output_dir / bed_filename
+    
+    print(f"   - Downloading panel BED file: {dx_path}")
+    
+    try:
+        # Use dx download command
+        cmd = ["dx", "download", dx_path, "-o", str(local_path)]
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print(f"   - Downloaded panel BED file to: {local_path}")
+        return local_path
+    except subprocess.CalledProcessError as e:
+        print(f"   - Warning: Failed to download panel BED file: {e}")
+        print(f"     Error: {e.stderr}")
+        return None
+    except FileNotFoundError:
+        print(f"   - Warning: dx command not found. Cannot download panel BED file.")
+        print(f"     Please ensure DNAnexus CLI is installed and configured.")
+        return None
+
+
+def extract_panel_genes(panel_bed_file: Path) -> Set[str]:
+    """
+    Extracts unique gene symbols from the panel BED file.
+    
+    Args:
+        panel_bed_file: Path to the panel BED file
+    
+    Returns:
+        Set of gene symbols found in the BED file
+    """
+    genes = set()
+    
+    with open(panel_bed_file, 'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            
+            parts = line.strip().split('\t')
+            if len(parts) >= 4:
+                # Extract gene symbol from the 4th column (name field)
+                # Format: MSH2_EPCAM_1;ENSG00000095002 or MSH2;NM_000251.2 or BRCA1_3UTR;transcript
+                name_field = parts[3]
+                # Take the part before the semicolon
+                gene_region = name_field.split(';')[0]
+                # Extract only the gene symbol before the first underscore
+                # This removes user-defined region suffixes like _3UTR, _IN11_1, _PM_5_1, etc.
+                gene_symbol = gene_region.split('_')[0]
+                if gene_symbol:  # Only add non-empty gene symbols
+                    genes.add(gene_symbol)
+    
+    return genes
+
+
+def get_panel_genes(bam_file: Path, output_dir: Path) -> Optional[Set[str]]:
+    """
+    Gets the set of genes for the panel based on the BAM filename.
+    
+    Args:
+        bam_file: Path to the BAM file
+        output_dir: Directory for temporary files
+    
+    Returns:
+        Set of gene symbols for this panel, or None if panel filtering unavailable
+    """
+    print("\n--- Panel Gene Filtering ---")
+    
+    # Extract Pan number from BAM filename
+    pan_number = extract_pan_number_from_bam(bam_file.name)
+    if not pan_number:
+        print(f"   - No Pan number found in BAM filename: {bam_file.name}")
+        return None
+    
+    print(f"   - Detected Pan number: {pan_number}")
+    
+    try:
+        # Download panel configuration
+        panel_config = download_panel_config()
+        
+        # Extract ed_cnvcalling_bedfile for this Pan
+        bedfile_name = extract_ed_cnvcalling_bedfile(panel_config, pan_number)
+        if not bedfile_name:
+            print(f"   - No ed_cnvcalling_bedfile found for {pan_number}")
+            return None
+        
+        print(f"   - Panel BED file: {bedfile_name}")
+        
+        # Download the panel BED file
+        panel_bed_file = download_panel_bed_file(bedfile_name, output_dir)
+        if not panel_bed_file:
+            return None
+        
+        # Extract genes from the panel BED file
+        panel_genes = extract_panel_genes(panel_bed_file)
+        print(f"   - Found {len(panel_genes)} unique genes in panel: {', '.join(sorted(list(panel_genes))[:10])}{'...' if len(panel_genes) > 10 else ''}")
+        
+        return panel_genes
+        
+    except Exception as e:
+        print(f"   - Error during panel gene extraction: {e}")
+        return None
 
 
 def run_command(command: List[str], cwd: Path = None):
@@ -178,12 +366,22 @@ def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path
     return chanjo_json_output
 
 
-def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namespace, output_dir: Path):
+def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namespace, output_dir: Path, panel_genes: Optional[Set[str]] = None):
     """
     Parses the outputs from sambamba and chanjo to create final reports.
     This function is a Python 3 rewrite of the logic in `read_chanjo.py`.
+    
+    Args:
+        sambamba_bed: Path to sambamba output BED file
+        chanjo_json: Path to chanjo JSON output file 
+        args: Command line arguments
+        output_dir: Output directory
+        panel_genes: Optional set of gene symbols to filter results (panel-specific filtering)
     """
     print("\n--- Processing and Generating Final Reports ---")
+    
+    if panel_genes:
+        print(f"   - Applying panel-specific filtering for {len(panel_genes)} genes")
     
     # --- Part 1: Create a simple summary from Chanjo's JSON output (overall stats) ---
     gene_summary_path = output_dir / GENE_SUMMARY_FILENAME
@@ -193,6 +391,8 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
         mean_coverage = data.get('mean_coverage', 'N/A')
         f_out.write(f"Sample ID: {sample_id}\n")
         f_out.write(f"Mean Coverage: {mean_coverage}\n")
+        if panel_genes:
+            f_out.write(f"Panel Genes: {len(panel_genes)} genes\n")
         for key, value in data.items():
             if key.startswith('completeness_'):
                 level = key.split('_')[1]
@@ -201,6 +401,9 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
 
     # --- Part 2: Create an exon-level report for regions below 100% coverage ---
     exon_report_path = output_dir / EXON_REPORT_FILENAME
+    exon_count = 0
+    filtered_exon_count = 0
+    
     with open(sambamba_bed, 'r') as f_in, open(exon_report_path, 'w', newline='') as f_out:
         writer = csv.writer(f_out)
         writer.writerow(["gene_symbol", "transcript", "entrez_id", "chr", "start", "stop", "mean_coverage", "completeness"])
@@ -211,9 +414,13 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
             
             fields = line.strip().split('\t')
             # Expected format: chrom, start, end, name, score, strand, gene;transcript, entrezID, ...
+            if len(fields) < 11:
+                continue
+                
             completeness = float(fields[10])
 
             if completeness < 100.0:
+                exon_count += 1
                 gene_info = fields[6]
                 entrez_id = fields[7]
                 coords = fields[3] # Expects format like "chr1-12345-67890"
@@ -231,9 +438,17 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
                 else:
                     gene_symbol, transcript = gene_info, "N/A"
                 
+                # Apply panel filtering if enabled
+                if panel_genes and gene_symbol not in panel_genes:
+                    filtered_exon_count += 1
+                    continue
+                
                 writer.writerow([gene_symbol, transcript, entrez_id, chrom, start, stop, mean_coverage, completeness])
                 
-    print(f"   - Generated exon-level report: {exon_report_path}")
+    if panel_genes and filtered_exon_count > 0:
+        print(f"   - Generated exon-level report: {exon_report_path} (filtered {filtered_exon_count}/{exon_count} exons not in panel)")
+    else:
+        print(f"   - Generated exon-level report: {exon_report_path}")
 
     # --- Part 3: Create a gene-level report from sambamba data ---
     # Calculate average coverage and completeness per gene from sambamba output
@@ -261,6 +476,10 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
                 if entrez_id == "11200":
                     gene_symbol = "CHEK2"
                 
+                # Apply panel filtering if enabled
+                if panel_genes and gene_symbol not in panel_genes:
+                    continue
+                
                 if gene_symbol not in gene_stats:
                     gene_stats[gene_symbol] = {'coverage': [], 'completeness': []}
                 
@@ -279,7 +498,12 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
             exon_count = len(stats['coverage'])
             writer.writerow([gene_symbol, f"{avg_coverage:.2f}", f"{avg_completeness:.2f}", exon_count])
 
-    print(f"   - Generated gene-level report: {gene_report_path}")
+    total_genes = len(gene_stats)
+    if panel_genes:
+        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} panel genes)")
+    else:
+        print(f"   - Generated gene-level report: {gene_report_path} ({total_genes} genes)")
+        
     print(f"\n✅ All reports generated successfully in: {output_dir}")
 
 
@@ -307,6 +531,9 @@ def main():
     parser.add_argument("-t", "--threads", type=int, default=os.cpu_count(), help="Number of threads to use.")
     parser.add_argument("-o", "--output-dir", type=Path, default=Path.cwd() / "coverage_results", help="Directory to store all outputs.")
 
+    # --- Panel Filtering ---
+    parser.add_argument("--panel-filter", action='store_true', help="Enable panel-specific gene filtering based on BAM filename.")
+
     args = parser.parse_args()
 
     # --- Basic Input Validation ---
@@ -328,9 +555,14 @@ def main():
     print(f"📂 All outputs will be saved in: {args.output_dir.resolve()}")
 
     # --- Execute Workflow ---
+    if args.panel_filter:
+        panel_genes = get_panel_genes(args.bam_file, args.output_dir)
+    else:
+        panel_genes = None
+
     sambamba_output = run_sambamba(args, args.output_dir)
     chanjo_output = run_chanjo(sambamba_output, args, args.output_dir)
-    process_results(sambamba_output, chanjo_output, args, args.output_dir)
+    process_results(sambamba_output, chanjo_output, args, args.output_dir, panel_genes)
 
 
 if __name__ == "__main__":
