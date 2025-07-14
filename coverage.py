@@ -107,6 +107,11 @@ def download_panel_bed_file(bedfile_name: str, output_dir: Path) -> Optional[Pat
     dx_path = f"{DNANEXUS_PROJECT}:/Data/BED/{bed_filename}"
     local_path = output_dir / bed_filename
     
+    # Check if file already exists
+    if local_path.exists():
+        print(f"   - Panel BED file already exists: {local_path}")
+        return local_path
+    
     print(f"   - Downloading panel BED file: {dx_path}")
     
     try:
@@ -289,7 +294,7 @@ def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path
     config_content = (
         f"database: {chanjo_db_path.name}\n"
         f"sambamba:\n"
-        f"  cov_treshold:\n"
+        f"  cov_threshold:\n"
         f"    - {args.coverage_level}"
     )
     with open(chanjo_config_path, "w") as f:
@@ -306,8 +311,9 @@ def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path
     print(f"   - Initialized new database: {chanjo_db_path}")
 
     # 3. Convert BED file to chanjo format and link/load
-    # Chanjo expects a specific 7-column BED format, but our file has 8 columns
-    # Convert: chr, start, end, name, transcript, gene_id, gene_symbol
+    # Chanjo expects a specific 7-column BED format, but our file has 7 columns in a different arrangement
+    # Input format: chr, start, end, name, transcript, gene_id, gene_symbol  
+    # Chanjo format: chr, start, end, name, transcript, gene_id, gene_symbol
     chanjo_bed_file = output_dir / "chanjo_format.bed"
     bed_file_abs = args.bed_file.resolve()
     
@@ -319,18 +325,18 @@ def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path
             if line.startswith('#'):
                 continue
             parts = line.strip().split('\t')
-            if len(parts) >= 8:
-                gene_id = parts[7]
+            if len(parts) >= 7:  # 7-column format
+                gene_id = parts[5]  # Column 6
+                gene_symbol = parts[6]  # Column 7
+                
                 # Skip entries with non-numeric gene IDs (like Ensembl IDs)
                 if not gene_id.isdigit():
                     skipped_count += 1
                     continue
                     
-                # Split gene;transcript field
-                gene_parts = parts[6].split(';')
-                gene_symbol = gene_parts[0] if gene_parts else 'UNKNOWN'
-                transcript = gene_parts[1] if len(gene_parts) > 1 else 'UNKNOWN'
                 # Output in chanjo format: chr, start, end, name, transcript, gene_id, gene_symbol
+                # Use parts[4] as transcript since the input format seems to have transcript in column 5
+                transcript = parts[4] if len(parts) > 4 else 'UNKNOWN'
                 f_out.write(f"{parts[0]}\t{parts[1]}\t{parts[2]}\t{parts[3]}\t{transcript}\t{gene_id}\t{gene_symbol}\n")
                 processed_count += 1
     
@@ -342,27 +348,72 @@ def run_chanjo(sambamba_output: Path, args: argparse.Namespace, output_dir: Path
     print(f"   - Linked transcript definitions from: {chanjo_bed_file}")
     print(f"   - Loaded coverage data from: {sambamba_output}")
 
-    # 4. Get unique gene list from original BED file (column 7 - EntrezID)
+    # 4. Get unique gene list from original BED file (column 6 - EntrezID) 
     gene_ids = set()
     with open(args.bed_file, "r") as f_in:
         for line in f_in:
             if line.startswith("#"):
                 continue
             parts = line.strip().split("\t")
-            if len(parts) >= 8:
-                gene_id = parts[7]
-                if gene_id and gene_id != '0':
+            if len(parts) >= 6:  # Changed from 8 to 6 for 7-column format
+                gene_id = parts[5]  # Changed from parts[7] to parts[5] (column 6)
+                if gene_id and gene_id != '0' and gene_id.isdigit():
                     gene_ids.add(gene_id)
     
     unique_genes = sorted(list(gene_ids))
     print(f"   - Found {len(unique_genes)} unique gene IDs to analyze.")
 
-    # 5. Get overall statistics from chanjo
-    result = run_command(["chanjo", "calculate", "mean"], cwd=output_dir)
+    # 5. Generate per-gene coverage statistics in legacy format
+    # Instead of using chanjo calculate coverage, we'll process sambamba output directly
+    # to match the legacy format: {"genes": {"gene_id": {"completeness_30": X, "mean_coverage": Y}}}
+    
+    print(f"   - Generating per-gene coverage statistics for {len(unique_genes)} genes...")
+    
+    # Calculate per-gene statistics from sambamba output
+    gene_stats = {}
+    sample_id = os.path.splitext(os.path.basename(sambamba_output))[0]
+    
+    with open(sambamba_output, 'r') as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+            fields = line.strip().split('\t')
+            if len(fields) >= 11:
+                # Extract gene info and coverage data
+                gene_info = fields[6] if len(fields) > 6 else ""
+                entrez_id = fields[7] if len(fields) > 7 else ""
+                mean_coverage = float(fields[9]) if len(fields) > 9 and fields[9] != '.' else 0.0
+                completeness = float(fields[10]) if len(fields) > 10 and fields[10] != '.' else 0.0
+                
+                # Only include numeric gene IDs
+                if entrez_id and entrez_id.isdigit():
+                    if entrez_id not in gene_stats:
+                        gene_stats[entrez_id] = {'coverage_values': [], 'completeness_values': []}
+                    
+                    gene_stats[entrez_id]['coverage_values'].append(mean_coverage)
+                    gene_stats[entrez_id]['completeness_values'].append(completeness)
+    
+    # Generate JSON output in legacy format - one line per gene
     with open(chanjo_json_output, "w") as f_out:
-        f_out.write(result.stdout)
+        for gene_id in sorted(gene_stats.keys(), key=int):
+            stats = gene_stats[gene_id]
+            avg_coverage = sum(stats['coverage_values']) / len(stats['coverage_values']) if stats['coverage_values'] else 0.0
+            avg_completeness = sum(stats['completeness_values']) / len(stats['completeness_values']) if stats['completeness_values'] else 0.0
+            
+            # Create legacy format JSON object
+            gene_json = {
+                "genes": {
+                    gene_id: {
+                        f"completeness_{args.coverage_level}": avg_completeness,
+                        "mean_coverage": avg_coverage
+                    }
+                },
+                "sample_id": sample_id
+            }
+            
+            f_out.write(json.dumps(gene_json) + "\n")
 
-    print(f"✅ Chanjo analysis complete. Overall statistics saved to: {chanjo_json_output}")
+    print(f"✅ Chanjo analysis complete. Per-gene statistics saved to: {chanjo_json_output}")
     return chanjo_json_output
 
 
@@ -385,18 +436,41 @@ def process_results(sambamba_bed: Path, chanjo_json: Path, args: argparse.Namesp
     
     # --- Part 1: Create a simple summary from Chanjo's JSON output (overall stats) ---
     gene_summary_path = output_dir / GENE_SUMMARY_FILENAME
-    with open(chanjo_json, 'r') as f_in, open(gene_summary_path, 'w') as f_out:
-        data = json.load(f_in)
-        sample_id = data.get('sample_id', 'unknown')
-        mean_coverage = data.get('mean_coverage', 'N/A')
+    
+    # Read the line-delimited JSON and collect all genes
+    all_genes = {}
+    sample_id = "unknown"
+    
+    with open(chanjo_json, 'r') as f_in:
+        for line in f_in:
+            if line.strip():
+                data = json.loads(line)
+                sample_id = data.get('sample_id', sample_id)
+                genes_data = data.get('genes', {})
+                all_genes.update(genes_data)
+    
+    # Calculate overall statistics
+    if all_genes:
+        total_coverage = sum(gene_data.get('mean_coverage', 0) for gene_data in all_genes.values())
+        avg_coverage = total_coverage / len(all_genes)
+        
+        # Get coverage level from first gene's completeness key
+        coverage_level = args.coverage_level
+        completeness_key = f"completeness_{coverage_level}"
+        total_completeness = sum(gene_data.get(completeness_key, 0) for gene_data in all_genes.values())
+        avg_completeness = total_completeness / len(all_genes)
+    else:
+        avg_coverage = 0
+        avg_completeness = 0
+    
+    with open(gene_summary_path, 'w') as f_out:
         f_out.write(f"Sample ID: {sample_id}\n")
-        f_out.write(f"Mean Coverage: {mean_coverage}\n")
+        f_out.write(f"Mean Coverage: {avg_coverage:.2f}\n")
+        f_out.write(f"Completeness at {args.coverage_level}X: {avg_completeness:.2f}\n")
+        f_out.write(f"Total Genes Analyzed: {len(all_genes)}\n")
         if panel_genes:
             f_out.write(f"Panel Genes: {len(panel_genes)} genes\n")
-        for key, value in data.items():
-            if key.startswith('completeness_'):
-                level = key.split('_')[1]
-                f_out.write(f"Completeness at {level}X: {value}\n")
+    
     print(f"   - Generated overall summary: {gene_summary_path}")
 
     # --- Part 2: Create an exon-level report for regions below 100% coverage ---
