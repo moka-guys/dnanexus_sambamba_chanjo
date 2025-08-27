@@ -116,12 +116,6 @@
       "label": "Exon-level coverage report",
       "help": "Tab-delimited file containing exon-level coverage data for regions with less than 100% coverage at the specified threshold.",
       "class": "array:file"
-    },
-    {
-      "name": "pdf_report",
-      "label": "PDF coverage report",
-      "help": "Comprehensive PDF report containing gene and exon coverage summaries with panel filtering applied.",
-      "class": "array:file"
     }
   ],
   "runSpec": {
