@@ -114,10 +114,6 @@ def process_results(sambamba_bed: Path, args: argparse.Namespace, output_dir: Pa
                 # Extract gene symbol
                 gene_symbol = gene_info.split(';')[0] if ';' in gene_info else gene_info
                 
-                # Special hardcoded case from original script
-                if entrez_id == "11200":
-                    gene_symbol = "CHEK2"
-                
                 # Calculate exon length from coordinates
                 try:
                     chrom, start, stop = coords.split('-')
