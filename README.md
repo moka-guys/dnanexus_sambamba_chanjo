@@ -1,33 +1,33 @@
-# dnanexus_sambamba_chanjo - v1.13
+# dnanexus_sambamba_chanjo - v2.0
 
 ## What does this app do?
 
-This app utilises Chanjo and Sambamba to calculates coverage.
+This applet calculates sequencing coverage statistics using Sambamba and a custom Python script.
 
 ### Sambamba
 
-The `sambamba depth region` function is used with the following arguments:
+The process is a simple, two-step pipeline:
 
-* -L bedfile    -   Only counts regions stated in the bedfile
-* -T n -   The required read depth (integer). For example, WES requires a minimum read depth of 20X, custom panels 30X whilst Oncology samples require a much higher read depth.
-* -t $(nproc)    -   Utilise multiple threads - uses the total number of threads available.
-* -m    -   Does not count overlapping mate reads more than once.
-* -F "mapping_quality 20 and not failed_quality_control and not duplicate"    - DEFAULT: Uses the BAM flag mapping quality to only count bases with a mapping quality >=20, which have passed QC, and are not duplicates. Syntax can be found [here](https://github.com/biod/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax)
-* -q    -   Min base quality for that base to be counted.
+- Sambamba: The sambamba depth region command is run first. It uses a BED file to calculate coverage statistics (mean coverage, percentage of bases above a threshold, etc.) for each genomic region.
 
-The sambamba output records the number of bases (that meet the parameters set) within each region of the bed file which have the required read depth.
+- Python Parser: A custom Python script (coverage.py) then reads the raw sambamba output file to generate two final, user-friendly reports: a gene-level summary and an exon-level "report-by-exception".
 
-This output is parsed by a python script to produce an output detailing any exons that are not covered 100% at the required read depth.
 
-### Chanjo
+The sambamba depth region function is used with the following arguments:
 
-The sambamba output is used by Chanjo to calculate the % of bases covered at the required read depth at a gene level.
+    -L: The BED file defining the regions of interest.
 
-The chanjo database is set up (`chanjo init -a; chanjo db setup`) and the sambamba file linked (`chanjo  link sambamba_output.bed`) and loaded (`chanjo load sambamba_output.bed`).
+    -T: The required read depth threshold (e.g., 30 for 30X).
 
-The bed file is used to extract a unique list of gene symbols and the coverage for each gene is then calculated (`chanjo calculate gene $gene >> chanjo_out.json`)
-### Read_chanjo.py
-A python script parses the sambamba and chanjo outputs and generates three files in formats that can be used downstream (see below)
+    -t: The number of threads to use for processing.
+
+    -m: An optional flag to count overlapping mate pairs only once.
+
+    -F: A powerful filter string to include or exclude reads based on BAM flags (e.g., mapping quality, duplicates).
+
+    --min-base-quality: The minimum base quality score for a base to be included in coverage calculations.
+
+
 ## What data are required for this app to run?
 
 1. BAM file. This BAM file should be the same as used for variant calling, following all preprocessing.
@@ -44,22 +44,31 @@ A python script parses the sambamba and chanjo outputs and generates three files
 ## What does this app output?
 
 All outputs are saved into a folder 'coverage'. Files that are not needed routinely saved into subfolders.
-This app produces six outputs.
+This app produces three outputs:
 
-1. Exon level coverage (*exon_level.txt). This consists of any exons which are covered <100% at the stated coverage (coverage/)
-2. gene wide coverage for moka (*chanjo_txt). This takes the chanjo output and reformats it so coverage can be inserted into Moka (WES samples). For each gene the entrezgene id, % covered at the the given X and average coverage in a tab seperated list (coverage/)
-3. Gene level coverage report (*gene_level.txt). Introduced in v1.12. This is a further modification of the chanjo output, but including the human readable gene symbol for the analyst (coverage/)
-4. The raw chanjo output (*chanjo_out.json). The chanjo output in JSON format (coverage/raw_output)
-5. The raw sambamba output file(*sambamba_output.bed). The sambamba BED file that is input to the app with columns describing coverage added to the end of each row (coverage/raw_output)
-6. The chanjo.yaml file (*chanjo.yaml). YAML file which provides the settings to chanjo (coverage/chanjo_yaml)
+1. [sample_name].gene_level.txt: A high-level summary of coverage for every gene. This report includes:
+
+    gene_symbol: The name of the gene.
+
+    mean_coverage: The mean coverage across all exons in the gene, weighted by exon length.
+
+    average_completeness: The percentage of bases that met the coverage threshold, also weighted by exon length.
+
+    exon_count: The total number of exons analyzed for the gene.
+
+    total_length_bp: The total length of the analyzed exons in base pairs.
+
+2. [sample_name].exon_level.txt: A "report-by-exception" that makes it easy to find regions with poor coverage. This file only lists exons that are covered less than 100% at the specified depth. It is separated into "CODING" and "UTR" sections for clarity.
+
+3. [sample_name].sambamba_output.bed: The raw, complete output from the sambamba depth region command. This file is useful for manual review or debugging.
 
 ## Running via the command line
 
 The `dx-toolkit` can be used to run the app from the command line using the format below:
 
 ```bash
-dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.13 \
---name "congenicaV1.13_test_standard settings" \
+dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v2.0 \
+--name "congenicaV2.0_test_standard settings" \
 -i sambamba_bed=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-cgEB1sJsCtyIzNnD6rju57Nhe \
 -i bamfile=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-Bk5bbrm6YuQGjAIupujWk0FjO \
 -i bam_index=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-BppUJ6p6cJGPS2WWEIWqzMBOc \
@@ -76,7 +85,7 @@ dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v1.13 \
 
 ## Testing
 
-There are two modules utilizing pytest which can be invoked by running the following commands from within the app's folder:
+There are two modules utilising pytest which can be invoked by running the following commands from within the app's folder:
 
 ```bash
 # Run all modules
@@ -90,4 +99,4 @@ pytest /src/test_inputs.py --setup-show
 ### NOTE: Currently test_outputs.py tests that Sambamba will run with the output of multiple pipelines, but does not automatically compare that output.  This can be done manually by comparing the produced files to those from the original.
 ## Created by
 
-This app was created within the Viapath Genome Informatics section
+This app was created within the Synnovis Bioinformatics team
