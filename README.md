@@ -67,7 +67,7 @@ This app produces three outputs:
 The `dx-toolkit` can be used to run the app from the command line using the format below:
 
 ```bash
-dx run applet-xxxxxx \
+dx run applet-J3Pf6zXK6J3FY4b154Vb4XQ7 \
 --name "congenicaV2.0_test_standard settings" \
 -i sambamba_bed=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-cgEB1sJsCtyIzNnD6rju57Nhe \
 -i bamfile=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-Bk5bbrm6YuQGjAIupujWk0FjO \
