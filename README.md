@@ -1,4 +1,4 @@
-# dnanexus_sambamba_chanjo - v2.0
+# dnanexus_sambamba_chanjo - v2.0.1
 
 ## What does this app do?
 
@@ -67,7 +67,7 @@ This app produces three outputs:
 The `dx-toolkit` can be used to run the app from the command line using the format below:
 
 ```bash
-dx run 001_ToolsReferenceData:/Apps/chanjo_sambamba_coverage_v2.0 \
+dx run applet-xxxxxx \
 --name "congenicaV2.0_test_standard settings" \
 -i sambamba_bed=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-cgEB1sJsCtyIzNnD6rju57Nhe \
 -i bamfile=project-PXH0qBZHXlfT2JYf7aMcHMxQk:file-Bk5bbrm6YuQGjAIupujWk0FjO \

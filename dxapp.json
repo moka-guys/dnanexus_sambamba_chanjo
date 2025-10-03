@@ -1,12 +1,12 @@
 {
-  "name": "sambamba_coverage_v2.0",
+  "name": "sambamba_coverage_v2.0.1",
   "title": "Coverage Analysis using Sambamba v0.6.9",
-  "summary": "v2.0 - Coverage analysis using sambamba with Python-based reporting",
+  "summary": "v2.0.1 - Coverage analysis using sambamba with Python-based reporting",
   "tags": [
     "coverage"
   ],
   "properties": {
-    "github release": "v2.0"
+    "github release": "v2.0.1"
   },
   "dxapi": "1.0.0",
   "access": {
@@ -138,7 +138,7 @@
   },
   "ignoreReuse": false,
   "regionalOptions": {
-    "aws:us-east-1": {
+    "aws:eu-west-2-g": {
       "systemRequirements": {
         "main": {
           "instanceType": "mem1_ssd1_v2_x2"
